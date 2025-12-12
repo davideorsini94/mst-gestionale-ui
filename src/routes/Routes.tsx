@@ -1,0 +1,45 @@
+import { createHashRouter } from 'react-router-dom';
+import MainLayout from '../components/MainLayout';
+import LoginPage from '../pages/Login/LoginPage';
+import HomePage from '../pages/Home/HomePage';
+import UsersPage from '../pages/Users/UsersPage';
+import RolesPage from '../pages/Roles/RolesPage';
+import RoleDetailPage from '../pages/Roles/RoleDetailPage';
+import SettingsPage from '../pages/Settings/SettingsPage';
+import StaffPage from '../pages/Staff/StaffPage';
+import StaffDetailPage from '../pages/Staff/StaffDetailPage';
+import MembersPage from '../pages/Members/MembersPage';
+import MemberDetailPage from '../pages/Members/MemberDetailPage';
+import TransactionsPage from '../pages/Transactions/TransactionsPage';
+import StatisticsPage from '../pages/Statistics/StatisticsPage';
+import VehiclesPage from '../pages/Vehicles/VehiclesPage';
+import VehicleDetailPage from '../pages/Vehicles/VehicleDetailPage';
+
+export const authenticatedRouter = createHashRouter([
+  {
+    path: '/',
+    element: <MainLayout />,
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: 'users', element: <UsersPage /> },
+      { path: 'roles', element: <RolesPage /> },
+      { path: 'roles/:code', element: <RoleDetailPage /> },
+      { path: 'settings', element: <SettingsPage /> },
+      { path: 'staff', element: <StaffPage /> },
+      { path: 'staff/:uuid', element: <StaffDetailPage /> },
+      { path: 'members', element: <MembersPage /> },
+      { path: 'members/:uuid', element: <MemberDetailPage /> },
+      { path: 'transactions', element: <TransactionsPage /> },
+      { path: 'statistics', element: <StatisticsPage /> },
+      { path: 'vehicles', element: <VehiclesPage /> },
+      { path: 'vehicles/:uuid', element: <VehicleDetailPage /> },
+    ],
+  },
+]);
+
+export const unauthenticatedRouter = createHashRouter([
+  {
+    path: '*',
+    element: <LoginPage />,
+  },
+]);
