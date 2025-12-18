@@ -14,6 +14,7 @@ import TransactionsPage from '../pages/Transactions/TransactionsPage';
 import StatisticsPage from '../pages/Statistics/StatisticsPage';
 import VehiclesPage from '../pages/Vehicles/VehiclesPage';
 import VehicleDetailPage from '../pages/Vehicles/VehicleDetailPage';
+import RemindersPage from '../pages/Reminders/RemindersPage';
 
 export const authenticatedRouter = createHashRouter([
   {
@@ -33,6 +34,7 @@ export const authenticatedRouter = createHashRouter([
       { path: 'statistics', element: <StatisticsPage /> },
       { path: 'vehicles', element: <VehiclesPage /> },
       { path: 'vehicles/:uuid', element: <VehicleDetailPage /> },
+      { path: 'reminders', element: <RemindersPage /> },
     ],
   },
 ]);

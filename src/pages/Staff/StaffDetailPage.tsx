@@ -91,6 +91,7 @@ interface User {
   firstName?: string;
   lastName?: string;
   email?: string;
+  phone?: string;
 }
 
 const documentTypeLabels: Record<string, string> = {
@@ -236,6 +237,21 @@ export default function StaffDetailPage() {
     setSelectedImageFile(file);
     setCropModalOpen(true);
     return false;
+  };
+
+  const handleUserChange = (userUuid: string | undefined) => {
+    if (!userUuid) {
+      return;
+    }
+    const selectedUser = users.find((u) => u.uuid === userUuid);
+    if (selectedUser) {
+      form.setFieldsValue({
+        firstName: selectedUser.firstName || form.getFieldValue('firstName'),
+        lastName: selectedUser.lastName || form.getFieldValue('lastName'),
+        email: selectedUser.email || form.getFieldValue('email'),
+        phone: selectedUser.phone || form.getFieldValue('phone'),
+      });
+    }
   };
 
   const handleCropComplete = async (croppedBlob: Blob, filename: string) => {
@@ -462,7 +478,7 @@ export default function StaffDetailPage() {
                 {canManageStaff && (
                   <Col span={6}>
                     <Form.Item name="linkedUserUuid" label="Utente collegato">
-                      <Select allowClear placeholder="Seleziona utente" showSearch optionFilterProp="children">
+                      <Select allowClear placeholder="Seleziona utente" showSearch optionFilterProp="children" onChange={handleUserChange}>
                         {users.map((user) => (
                           <Select.Option key={user.uuid} value={user.uuid}>
                             {user.username} {user.firstName && `(${user.firstName} ${user.lastName || ''})`}

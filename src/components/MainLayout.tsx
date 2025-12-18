@@ -14,6 +14,7 @@ import {
   LogoutOutlined,
   SafetyCertificateOutlined,
   IdcardOutlined,
+  BellOutlined,
 } from '@ant-design/icons';
 import { authService } from '../services/AuthService';
 
@@ -29,6 +30,7 @@ const allMenuItems = [
   { key: '/transactions', icon: <DollarOutlined />, label: 'Movimenti', capability: 'CAN_VIEW_TRANSACTIONS' },
   { key: '/statistics', icon: <BarChartOutlined />, label: 'Statistiche', capability: 'CAN_VIEW_STATISTICS' },
   { key: '/vehicles', icon: <CarOutlined />, label: 'Veicoli', capability: 'CAN_VIEW_VEHICLES' },
+  { key: '/reminders', icon: <BellOutlined />, label: 'Reminder', capability: 'CAN_MANAGE_SETTINGS' },
   { key: '/settings', icon: <SettingOutlined />, label: 'Impostazioni', capability: 'CAN_VIEW_SETTINGS' },
 ];
 

@@ -41,7 +41,11 @@ class ApiService {
   }
 
   async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.post<T>(url, data, config);
+    // Per FormData, non impostare Content-Type - axios lo farà automaticamente con il boundary
+    const finalConfig = data instanceof FormData 
+      ? { ...config, headers: { ...config?.headers, 'Content-Type': undefined } }
+      : config;
+    const response = await this.client.post<T>(url, data, finalConfig);
     return response.data;
   }
 
