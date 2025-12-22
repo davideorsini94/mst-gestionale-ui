@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, message, Divider, List, InputNumber, Tabs, Switch, Alert } from 'antd';
-import { SaveOutlined, MailOutlined, SettingOutlined } from '@ant-design/icons';
-import { apiService } from '../../services/ApiService';
+import { Card, Form, Input, Button, message, Divider, List, InputNumber, Tabs, Switch, Alert, Upload, Table, Popconfirm, Space, Tag } from 'antd';
+import { SaveOutlined, MailOutlined, SettingOutlined, DatabaseOutlined, CloudDownloadOutlined, DeleteOutlined, UploadOutlined, CloudServerOutlined } from '@ant-design/icons';
+import { apiService, getApiBaseUrl } from '@services/ApiService.ts';
 
 interface Setting {
   key: string;
@@ -25,6 +25,10 @@ export default function SettingsPage() {
   const [savingSmtp, setSavingSmtp] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [savingAdminEmail, setSavingAdminEmail] = useState(false);
+  const [backups, setBackups] = useState<any[]>([]);
+  const [loadingBackups, setLoadingBackups] = useState(false);
+  const [creatingBackup, setCreatingBackup] = useState<string | null>(null);
+  const [restoringBackup, setRestoringBackup] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -112,6 +116,73 @@ export default function SettingsPage() {
 
   // Filtra le impostazioni per non mostrare quelle gestite separatamente
   const filteredSettings = settings.filter(s => !['smtpConfig', 'adminEmail'].includes(s.key));
+
+  const loadBackups = async () => {
+    setLoadingBackups(true);
+    try {
+      const data = await apiService.get<any[]>('/settings/backup/list');
+      setBackups(data);
+    } catch (error) {
+      message.error('Errore nel caricamento dei backup');
+    } finally {
+      setLoadingBackups(false);
+    }
+  };
+
+  const handleCreateBackup = async (type: 'database' | 'minio' | 'full') => {
+    setCreatingBackup(type);
+    try {
+      const endpoint = type === 'full' ? '/settings/backup/full' : `/settings/backup/${type}`;
+      await apiService.post(endpoint);
+      message.success(`Backup ${type} creato con successo`);
+      loadBackups();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || `Errore nella creazione del backup ${type}`);
+    } finally {
+      setCreatingBackup(null);
+    }
+  };
+
+  const handleDownloadBackup = async (filename: string) => {
+    try {
+      window.open(`${getApiBaseUrl()}/settings/backup/download/${filename}`, '_blank');
+    } catch (error) {
+      message.error('Errore nel download del backup');
+    }
+  };
+
+  const handleDeleteBackup = async (filename: string) => {
+    try {
+      await apiService.delete(`/settings/backup/${filename}`);
+      message.success('Backup eliminato');
+      loadBackups();
+    } catch (error) {
+      message.error('Errore nella cancellazione del backup');
+    }
+  };
+
+  const handleRestoreBackup = async (file: File, type: 'database' | 'minio') => {
+    setRestoringBackup(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await apiService.post(`/settings/restore/${type}`, formData);
+      message.success(`${type === 'database' ? 'Database' : 'MinIO'} ripristinato con successo`);
+      message.warning('Ricaricare la pagina per vedere i cambiamenti');
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Errore nel ripristino');
+    } finally {
+      setRestoringBackup(false);
+    }
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
 
   const tabItems = [
     {
@@ -233,6 +304,180 @@ export default function SettingsPage() {
                 </List.Item>
               )}
             />
+          </Card>
+        </div>
+      ),
+    },
+    {
+      key: 'backup',
+      label: (
+        <span>
+          <DatabaseOutlined />
+          Backup & Restore
+        </span>
+      ),
+      children: (
+        <div className="space-y-4">
+          <Alert
+            message="Attenzione"
+            description="Le operazioni di backup e restore sono critiche. Assicurati di avere i permessi necessari e di capire le conseguenze prima di procedere. Il restore sovrascriverà i dati esistenti."
+            type="warning"
+            showIcon
+            className="mb-4"
+          />
+
+          <Card title="Crea Backup">
+            <div className="grid grid-cols-3 gap-4">
+              <Button
+                type="primary"
+                icon={<DatabaseOutlined />}
+                loading={creatingBackup === 'database'}
+                onClick={() => handleCreateBackup('database')}
+                block
+              >
+                Backup Database
+              </Button>
+              <Button
+                type="primary"
+                icon={<CloudServerOutlined />}
+                loading={creatingBackup === 'minio'}
+                onClick={() => handleCreateBackup('minio')}
+                block
+              >
+                Backup MinIO
+              </Button>
+              <Button
+                type="primary"
+                danger
+                icon={<SaveOutlined />}
+                loading={creatingBackup === 'full'}
+                onClick={() => handleCreateBackup('full')}
+                block
+              >
+                Backup Completo
+              </Button>
+            </div>
+          </Card>
+
+          <Card 
+            title="Backup Disponibili" 
+            extra={
+              <Button icon={<CloudDownloadOutlined />} onClick={loadBackups} loading={loadingBackups}>
+                Ricarica
+              </Button>
+            }
+          >
+            <Table
+              dataSource={backups}
+              loading={loadingBackups}
+              rowKey="filename"
+              columns={[
+                {
+                  title: 'Nome File',
+                  dataIndex: 'filename',
+                  key: 'filename',
+                },
+                {
+                  title: 'Tipo',
+                  dataIndex: 'type',
+                  key: 'type',
+                  render: (type: string) => (
+                    <Tag color={type === 'database' ? 'blue' : 'green'}>
+                      {type === 'database' ? 'Database' : 'MinIO'}
+                    </Tag>
+                  ),
+                },
+                {
+                  title: 'Dimensione',
+                  dataIndex: 'size',
+                  key: 'size',
+                  render: (size: number) => formatBytes(size),
+                },
+                {
+                  title: 'Data Creazione',
+                  dataIndex: 'createdAt',
+                  key: 'createdAt',
+                  render: (date: string) => new Date(date).toLocaleString('it-IT'),
+                },
+                {
+                  title: 'Azioni',
+                  key: 'actions',
+                  render: (_: any, record: any) => (
+                    <Space>
+                      <Button
+                        type="link"
+                        icon={<CloudDownloadOutlined />}
+                        onClick={() => handleDownloadBackup(record.filename)}
+                      >
+                        Scarica
+                      </Button>
+                      <Popconfirm
+                        title="Eliminare questo backup?"
+                        onConfirm={() => handleDeleteBackup(record.filename)}
+                        okText="Sì"
+                        cancelText="No"
+                      >
+                        <Button type="link" danger icon={<DeleteOutlined />}>
+                          Elimina
+                        </Button>
+                      </Popconfirm>
+                    </Space>
+                  ),
+                },
+              ]}
+            />
+          </Card>
+
+          <Card title="Ripristina da Backup">
+            <Alert
+              message="Attenzione: Operazione Irreversibile"
+              description="Il ripristino sovrascriverà tutti i dati esistenti. Assicurati di aver creato un backup prima di procedere."
+              type="error"
+              showIcon
+              className="mb-4"
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="font-semibold mb-2">Ripristina Database</h3>
+                <Upload
+                  accept=".sql"
+                  beforeUpload={(file) => {
+                    handleRestoreBackup(file, 'database');
+                    return false;
+                  }}
+                  showUploadList={false}
+                  disabled={restoringBackup}
+                >
+                  <Button
+                    icon={<UploadOutlined />}
+                    loading={restoringBackup}
+                    block
+                  >
+                    Carica Backup Database (.sql)
+                  </Button>
+                </Upload>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Ripristina MinIO</h3>
+                <Upload
+                  accept=".tar"
+                  beforeUpload={(file) => {
+                    handleRestoreBackup(file, 'minio');
+                    return false;
+                  }}
+                  showUploadList={false}
+                  disabled={restoringBackup}
+                >
+                  <Button
+                    icon={<UploadOutlined />}
+                    loading={restoringBackup}
+                    block
+                  >
+                    Carica Backup MinIO (.tar)
+                  </Button>
+                </Upload>
+              </div>
+            </div>
           </Card>
         </div>
       ),
