@@ -49,36 +49,50 @@ export default function TransactionsPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; updated: number; errors: { row: number; error: string }[] } | null>(null);
-  
+
   // Filtri
   const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
-  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+  const [filterYear, setFilterYear] = useState<number | null>(new Date().getFullYear());
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [initialLoad, setInitialLoad] = useState(true);
 
+  // Caricamento iniziale
   useEffect(() => {
-    loadData(1, pagination.pageSize);
+    loadData(1, 10);
+  }, []);
+
+  // Ricarica quando cambiano i filtri (dopo il caricamento iniziale)
+  useEffect(() => {
+    if (!initialLoad) {
+      loadData(1, pagination.pageSize);
+    }
+    setInitialLoad(false);
   }, [filterType, filterYear, sortOrder]);
 
   const loadData = async (page: number, pageSize: number) => {
     setLoading(true);
     try {
-      const startDate = `${filterYear}-01-01`;
-      const endDate = `${filterYear}-12-31`;
-      
       const filtersObj: any = {
         page,
         pageSize,
         relations: { category: true },
-        order: { date: sortOrder },
-        where: {
-          date: { $gte: startDate, $lte: endDate },
-        },
+        orderBy: { date: sortOrder },
+        andFilters: {},
       };
-      
-      if (filterType !== 'ALL') {
-        filtersObj.where.type = filterType;
+
+      if (filterYear !== null) {
+        const startDate = `${filterYear}-01-01`;
+        const endDate = `${filterYear}-12-31`;
+        filtersObj.andFilters.between = { date: [startDate, endDate] };
       }
       
+      if (filterType !== 'ALL') {
+        if (!filtersObj.andFilters.equal) {
+          filtersObj.andFilters.equal = {};
+        }
+        filtersObj.andFilters.equal.type = filterType;
+      }
+
       const filters = JSON.stringify(filtersObj);
       const response = await apiService.get<[Transaction[], number]>(
         `/transactions?filters=${encodeURIComponent(filters)}`
@@ -191,7 +205,7 @@ export default function TransactionsPage() {
       );
 
       setImportResult(result);
-      
+
       if (result.errors.length === 0) {
         message.success(`Import completato: ${result.imported} nuove, ${result.updated} aggiornate`);
       } else {
@@ -240,9 +254,9 @@ export default function TransactionsPage() {
       render: (_: unknown, record: Transaction) => (
         record.receiptMinioPath ? (
           <Tooltip title={`Ricevuta N° ${record.receiptNumber}/${record.receiptYear}`}>
-            <Button 
-              type="link" 
-              icon={<FilePdfOutlined style={{ fontSize: 18, color: '#ff4d4f' }} />} 
+            <Button
+              type="link"
+              icon={<FilePdfOutlined style={{ fontSize: 18, color: '#ff4d4f' }} />}
               onClick={() => handleViewReceipt(record.uuid)}
             />
           </Tooltip>
@@ -276,9 +290,9 @@ export default function TransactionsPage() {
         ) : '-'
       ),
     },
-    { 
-      title: 'Ditta-Ente-Soggetto', 
-      dataIndex: 'subject', 
+    {
+      title: 'Ditta-Ente-Soggetto',
+      dataIndex: 'subject',
       key: 'subject',
       ellipsis: true,
     },
@@ -311,20 +325,20 @@ export default function TransactionsPage() {
         ) : '-'
       ),
     },
-    { 
-      title: 'Note', 
-      dataIndex: 'notes', 
+    {
+      title: 'Note',
+      dataIndex: 'notes',
       key: 'notes',
       ellipsis: true,
     },
-    { 
-      title: 'Note2', 
-      dataIndex: 'notes2', 
+    {
+      title: 'Note2',
+      dataIndex: 'notes2',
       key: 'notes2',
       ellipsis: true,
     },
-    { 
-      title: 'Voce Bilancio', 
+    {
+      title: 'Voce Bilancio',
       key: 'budgetItem',
       render: (_: unknown, record: Transaction) => record.budgetItem || record.category?.name || '-',
     },
@@ -351,11 +365,12 @@ export default function TransactionsPage() {
       <div className="flex gap-4 mb-4">
         <div>
           <span className="mr-2">Anno:</span>
-          <Select 
-            value={filterYear} 
+          <Select
+            value={filterYear}
             onChange={setFilterYear}
-            style={{ width: 100 }}
+            style={{ width: 120 }}
           >
+            <Select.Option value={null}>Tutti</Select.Option>
             {years.map(year => (
               <Select.Option key={year} value={year}>{year}</Select.Option>
             ))}
@@ -363,8 +378,8 @@ export default function TransactionsPage() {
         </div>
         <div>
           <span className="mr-2">Tipo:</span>
-          <Select 
-            value={filterType} 
+          <Select
+            value={filterType}
             onChange={setFilterType}
             style={{ width: 120 }}
           >
@@ -375,8 +390,8 @@ export default function TransactionsPage() {
         </div>
         <div>
           <span className="mr-2">Ordine:</span>
-          <Select 
-            value={sortOrder} 
+          <Select
+            value={sortOrder}
             onChange={setSortOrder}
             style={{ width: 150 }}
           >
