@@ -20,8 +20,13 @@ export default defineConfig({
     minify: false,
     cssCodeSplit: false,
   },
-  server: { 
-    cors: true,
-    port: 5173,
-  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://mst-gestionale-be:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
+  }
 });

@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, message, Divider, List, InputNumber, Tabs, Switch, Alert, Upload, Table, Popconfirm, Space, Tag } from 'antd';
-import { SaveOutlined, MailOutlined, SettingOutlined, DatabaseOutlined, CloudDownloadOutlined, DeleteOutlined, UploadOutlined, CloudServerOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { Card, Form, Input, Button, message, Divider, List, InputNumber, Tabs, Switch, Alert, Upload, Table, Popconfirm, Space, Tag, Grid, Result } from 'antd';
+import { SaveOutlined, MailOutlined, SettingOutlined, DatabaseOutlined, CloudDownloadOutlined, DeleteOutlined, UploadOutlined, CloudServerOutlined, LockOutlined } from '@ant-design/icons';
 import { apiService, getApiBaseUrl } from '@services/ApiService.ts';
+import { authService } from '../../services/AuthService';
+
+const { useBreakpoint } = Grid;
 
 interface Setting {
   key: string;
@@ -18,6 +22,9 @@ interface SmtpConfig {
 }
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [settings, setSettings] = useState<Setting[]>([]);
   const [loading, setLoading] = useState(true);
   const [form] = Form.useForm();
@@ -29,22 +36,39 @@ export default function SettingsPage() {
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState<string | null>(null);
   const [restoringBackup, setRestoringBackup] = useState(false);
+  const [passwordForm] = Form.useForm();
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const canAccessSettings = authService.hasCapability('CAN_MANAGE_SETTINGS');
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    if (canAccessSettings) {
+      loadSettings();
+    }
+  }, [canAccessSettings]);
+
+  if (!canAccessSettings) {
+    return (
+      <Result
+        status="403"
+        title="Accesso Negato"
+        subTitle="Non hai i permessi per accedere a questa pagina."
+        extra={<Button type="primary" onClick={() => navigate('/')}>Torna alla Home</Button>}
+      />
+    );
+  }
 
   const loadSettings = async () => {
     try {
       const data = await apiService.get<Setting[]>('/settings');
       setSettings(data);
-      
+
       // Carica configurazione SMTP
       const smtpSetting = data.find(s => s.key === 'smtpConfig');
       if (smtpSetting?.value) {
         smtpForm.setFieldsValue(smtpSetting.value as SmtpConfig);
       }
-      
+
       // Carica email admin
       const adminEmailSetting = data.find(s => s.key === 'adminEmail');
       if (adminEmailSetting?.value) {
@@ -184,6 +208,27 @@ export default function SettingsPage() {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
+  const handleChangePassword = async (values: { currentPassword: string; newPassword: string; confirmPassword: string }) => {
+    if (values.newPassword !== values.confirmPassword) {
+      message.error('Le password non coincidono');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await apiService.post('/auth/change-password', {
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      });
+      message.success('Password aggiornata con successo');
+      passwordForm.resetFields();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Errore nel cambio password');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const tabItems = [
     {
       key: 'email',
@@ -204,7 +249,7 @@ export default function SettingsPage() {
               className="mb-4"
             />
             <Form form={smtpForm} layout="vertical" onFinish={handleSaveSmtp}>
-              <div className="grid grid-cols-2 gap-4">
+              <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                 <Form.Item name="host" label="Host SMTP" rules={[{ required: true }]}>
                   <Input placeholder="es. smtp.gmail.com" />
                 </Form.Item>
@@ -212,7 +257,7 @@ export default function SettingsPage() {
                   <InputNumber min={1} max={65535} placeholder="587" className="w-full" />
                 </Form.Item>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                 <Form.Item name="user" label="Username" rules={[{ required: true }]}>
                   <Input placeholder="es. noreply@example.com" />
                 </Form.Item>
@@ -327,7 +372,7 @@ export default function SettingsPage() {
           />
 
           <Card title="Crea Backup">
-            <div className="grid grid-cols-3 gap-4">
+            <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-3'} gap-4`}>
               <Button
                 type="primary"
                 icon={<DatabaseOutlined />}
@@ -359,8 +404,8 @@ export default function SettingsPage() {
             </div>
           </Card>
 
-          <Card 
-            title="Backup Disponibili" 
+          <Card
+            title="Backup Disponibili"
             extra={
               <Button icon={<CloudDownloadOutlined />} onClick={loadBackups} loading={loadingBackups}>
                 Ricarica
@@ -436,7 +481,7 @@ export default function SettingsPage() {
               showIcon
               className="mb-4"
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
               <div>
                 <h3 className="font-semibold mb-2">Ripristina Database</h3>
                 <Upload
@@ -482,12 +527,83 @@ export default function SettingsPage() {
         </div>
       ),
     },
+    {
+      key: 'password',
+      label: (
+        <span>
+          <LockOutlined />
+          Cambio Password
+        </span>
+      ),
+      children: (
+        <Card title="Cambia Password">
+          <Alert
+            message="Sicurezza"
+            description="La nuova password deve essere di almeno 6 caratteri. Dopo il cambio password dovrai effettuare nuovamente il login."
+            type="info"
+            showIcon
+            className="mb-4"
+          />
+          <Form
+            form={passwordForm}
+            layout="vertical"
+            onFinish={handleChangePassword}
+            className="max-w-md"
+          >
+            <Form.Item
+              name="currentPassword"
+              label="Password Attuale"
+              rules={[{ required: true, message: 'Inserisci la password attuale' }]}
+            >
+              <Input.Password placeholder="Password attuale" />
+            </Form.Item>
+            <Form.Item
+              name="newPassword"
+              label="Nuova Password"
+              rules={[
+                { required: true, message: 'Inserisci la nuova password' },
+                { min: 6, message: 'La password deve essere di almeno 6 caratteri' },
+              ]}
+            >
+              <Input.Password placeholder="Nuova password" />
+            </Form.Item>
+            <Form.Item
+              name="confirmPassword"
+              label="Conferma Nuova Password"
+              rules={[
+                { required: true, message: 'Conferma la nuova password' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('newPassword') === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('Le password non coincidono'));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password placeholder="Conferma nuova password" />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={changingPassword} icon={<LockOutlined />}>
+                Cambia Password
+              </Button>
+            </Form.Item>
+          </Form>
+        </Card>
+      ),
+    },
   ];
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Impostazioni</h1>
-      <Tabs items={tabItems} defaultActiveKey="email" />
+      <h1 className="text-xl md:text-2xl font-bold mb-4">Impostazioni</h1>
+      <Tabs
+        items={tabItems}
+        defaultActiveKey="email"
+        tabPosition={isMobile ? 'top' : 'top'}
+        size={isMobile ? 'small' : 'middle'}
+      />
     </div>
   );
 }

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Tag, Space, message, Input, Select, Tooltip } from 'antd';
+import { Table, Button, Tag, Space, message, Input, Select, Tooltip, Grid } from 'antd';
 import { PlusOutlined, EyeOutlined, SearchOutlined, FileTextOutlined, WarningOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/ApiService';
 import HotelBookingModal from './HotelBookingModal';
 import dayjs from 'dayjs';
+
+const { useBreakpoint } = Grid;
 
 interface Member {
   uuid: string;
@@ -40,6 +42,8 @@ interface PaginationState {
 }
 
 export default function MembersPage() {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -142,7 +146,7 @@ export default function MembersPage() {
       render: (_: unknown, record: Member) => {
         const expired = isExpired(record.medicalExamExpiry);
         const expiring = isExpiringSoon(record.medicalExamExpiry);
-        
+
         if (expired) {
           return (
             <Tooltip title={`Visita medica scaduta il ${dayjs(record.medicalExamExpiry).format('DD/MM/YYYY')}`}>
@@ -160,8 +164,8 @@ export default function MembersPage() {
         return null;
       },
     },
-    { title: 'Email', dataIndex: 'email', key: 'email' },
-    { title: 'Telefono', dataIndex: 'phone', key: 'phone' },
+    ...(!isMobile ? [{ title: 'Email', dataIndex: 'email', key: 'email' }] : []),
+    ...(!isMobile ? [{ title: 'Telefono', dataIndex: 'phone', key: 'phone' }] : []),
     {
       title: 'Tipo',
       dataIndex: 'memberType',
@@ -178,8 +182,8 @@ export default function MembersPage() {
         </Tag>
       ),
     },
-    { title: 'Codice FISI', dataIndex: 'fisiCode', key: 'fisiCode' },
-    { title: 'Codice FIS', dataIndex: 'fisCode', key: 'fisCode' },
+    ...(!isMobile ? [{ title: 'Codice FISI', dataIndex: 'fisiCode', key: 'fisiCode' }] : []),
+    ...(!isMobile ? [{ title: 'Codice FIS', dataIndex: 'fisCode', key: 'fisCode' }] : []),
     {
       title: 'Stato',
       dataIndex: 'status',
@@ -189,15 +193,15 @@ export default function MembersPage() {
     {
       title: 'Azioni',
       key: 'actions',
+      width: isMobile ? 80 : undefined,
       render: (_: unknown, record: Member) => (
-        <Space>
-          <Button
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/members/${record.uuid}`)}
-          >
-            Dettagli
-          </Button>
-        </Space>
+        <Button
+          size={isMobile ? 'small' : 'middle'}
+          icon={<EyeOutlined />}
+          onClick={() => navigate(`/members/${record.uuid}`)}
+        >
+          {isMobile ? '' : 'Dettagli'}
+        </Button>
       ),
     },
   ];
@@ -213,9 +217,9 @@ export default function MembersPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Tesserati</h1>
-        <Space>
+      <div className={`flex ${isMobile ? 'flex-col gap-3' : 'justify-between items-center'} mb-4`}>
+        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 'bold', margin: 0 }}>Tesserati</h1>
+        <Space wrap size={isMobile ? 'small' : 'middle'}>
           <Input.Search
             placeholder="Cerca..."
             prefix={<SearchOutlined />}
@@ -223,40 +227,46 @@ export default function MembersPage() {
             onChange={(e) => setSearch(e.target.value)}
             onSearch={handleSearch}
             allowClear
-            style={{ width: 200 }}
+            style={{ width: isMobile ? 150 : 200 }}
+            size={isMobile ? 'small' : 'middle'}
           />
-          <Select
-            placeholder="Tipo"
-            allowClear
-            style={{ width: 120 }}
-            onChange={(value) => setFilterType(value)}
-          >
-            <Select.Option value="ATHLETE">Atleta</Select.Option>
-            <Select.Option value="PARENT">Genitore</Select.Option>
-            <Select.Option value="MEMBER">Tesserato</Select.Option>
-          </Select>
-          <Select
-            placeholder="Agonista"
-            allowClear
-            style={{ width: 120 }}
-            onChange={(value) =>
-              setFilterCompetitor(value === undefined ? null : value)
-            }
-          >
-            <Select.Option value={true}>Sì</Select.Option>
-            <Select.Option value={false}>No</Select.Option>
-          </Select>
-          <Button
-            icon={<FileTextOutlined />}
-            disabled={selectedRowKeys.length === 0}
-            onClick={() => setHotelModalOpen(true)}
-          >
-            Lista Alberghiera ({selectedRowKeys.length})
-          </Button>
+          {!isMobile && (
+            <>
+              <Select
+                placeholder="Tipo"
+                allowClear
+                style={{ width: 120 }}
+                onChange={(value) => setFilterType(value)}
+              >
+                <Select.Option value="ATHLETE">Atleta</Select.Option>
+                <Select.Option value="PARENT">Genitore</Select.Option>
+                <Select.Option value="MEMBER">Tesserato</Select.Option>
+              </Select>
+              <Select
+                placeholder="Agonista"
+                allowClear
+                style={{ width: 120 }}
+                onChange={(value) =>
+                  setFilterCompetitor(value === undefined ? null : value)
+                }
+              >
+                <Select.Option value={true}>Sì</Select.Option>
+                <Select.Option value={false}>No</Select.Option>
+              </Select>
+              <Button
+                icon={<FileTextOutlined />}
+                disabled={selectedRowKeys.length === 0}
+                onClick={() => setHotelModalOpen(true)}
+              >
+                Lista Alberghiera ({selectedRowKeys.length})
+              </Button>
+            </>
+          )}
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => navigate('/members/new')}
+            size={isMobile ? 'small' : 'middle'}
           >
             Nuovo Tesserato
           </Button>
@@ -273,13 +283,16 @@ export default function MembersPage() {
         dataSource={members}
         rowKey="uuid"
         loading={loading}
+        scroll={{ x: isMobile ? 500 : undefined }}
+        size={isMobile ? 'small' : 'middle'}
         pagination={{
           current: pagination.current,
           pageSize: pagination.pageSize,
           total: pagination.total,
-          showSizeChanger: true,
-          showTotal: (total, range) => `${range[0]}-${range[1]} di ${total}`,
+          showSizeChanger: !isMobile,
+          showTotal: isMobile ? undefined : (total, range) => `${range[0]}-${range[1]} di ${total}`,
           pageSizeOptions: ['10', '20', '50', '100'],
+          size: isMobile ? 'small' : 'default',
         }}
         onChange={handleTableChange}
       />

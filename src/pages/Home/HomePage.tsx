@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, List, Tag, Spin, Select, Alert, Button } from 'antd';
+import { Card, Row, Col, Statistic, List, Tag, Spin, Select, Alert, Button, Grid } from 'antd';
 import {
   TeamOutlined,
   CarOutlined,
@@ -10,6 +10,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/ApiService';
 import { authService } from '../../services/AuthService';
+
+const { useBreakpoint } = Grid;
 
 interface VehicleExpiry {
   uuid: string;
@@ -59,6 +61,8 @@ interface UserDashboard {
 type DashboardData = AdminDashboard | StaffDashboard | UserDashboard;
 
 export default function HomePage() {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [expiryDays, setExpiryDays] = useState(30);
@@ -190,13 +194,13 @@ export default function HomePage() {
 
     return (
       <div>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">
+        <div className={`flex ${isMobile ? 'flex-col gap-3' : 'justify-between items-center'} mb-6`}>
+          <h1 className="text-xl md:text-2xl font-bold">
             Ciao, {dashboard.staff.firstName} {dashboard.staff.lastName}
           </h1>
           {!dashboard.message && (
-            <Button type="primary" onClick={() => navigate(`/staff/${dashboard.staff.uuid}`)}>
-              Modifica il mio profilo
+            <Button type="primary" size={isMobile ? 'middle' : 'large'} onClick={() => navigate(`/staff/${dashboard.staff.uuid}`)}>
+              {isMobile ? 'Modifica profilo' : 'Modifica il mio profilo'}
             </Button>
           )}
         </div>

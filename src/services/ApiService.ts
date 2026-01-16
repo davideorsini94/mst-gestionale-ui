@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { authService } from './AuthService';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const getApiBaseUrl = () => API_URL;
 
@@ -42,7 +42,7 @@ class ApiService {
 
   async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
     // Per FormData, non impostare Content-Type - axios lo farà automaticamente con il boundary
-    const finalConfig = data instanceof FormData 
+    const finalConfig = data instanceof FormData
       ? { ...config, headers: { ...config?.headers, 'Content-Type': undefined } }
       : config;
     const response = await this.client.post<T>(url, data, finalConfig);

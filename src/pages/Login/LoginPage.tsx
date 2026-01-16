@@ -19,8 +19,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <Card title="MST Gestionale - Login" className="w-96">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <Card
+        title="MST Gestionale - Login"
+        className="w-full max-w-sm"
+        styles={{ header: { textAlign: 'center' } }}
+      >
         <Form name="login" onFinish={onFinish} layout="vertical">
           <Form.Item
             name="username"

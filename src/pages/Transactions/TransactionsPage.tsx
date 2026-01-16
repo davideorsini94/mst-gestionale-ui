@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, Select, DatePicker, InputNumber, message, Space, Tag, Popconfirm, Tooltip, Upload, Alert } from 'antd';
+import { Table, Button, Modal, Form, Input, Select, DatePicker, InputNumber, message, Space, Tag, Popconfirm, Tooltip, Upload, Alert, Grid } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, FilePdfOutlined, UploadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { apiService, getApiBaseUrl } from '../../services/ApiService';
 import { authService } from '../../services/AuthService';
 import CategorySelect from '../../components/CategorySelect';
+
+const { useBreakpoint } = Grid;
 
 interface Transaction {
   uuid: string;
@@ -33,6 +35,8 @@ interface PaginationState {
 }
 
 export default function TransactionsPage() {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -49,11 +53,17 @@ export default function TransactionsPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; updated: number; errors: { row: number; error: string }[] } | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Filtri
   const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
   const [filterYear, setFilterYear] = useState<number | null>(new Date().getFullYear());
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [sortField, setSortField] = useState<string>('date');
+  const [filterSubject, setFilterSubject] = useState<string>('');
+  const [filterNotes, setFilterNotes] = useState<string>('');
+  const [filterNotes2, setFilterNotes2] = useState<string>('');
+  const [filterBudgetItem, setFilterBudgetItem] = useState<string>('');
   const [initialLoad, setInitialLoad] = useState(true);
 
   // Caricamento iniziale
@@ -61,22 +71,36 @@ export default function TransactionsPage() {
     loadData(1, 10);
   }, []);
 
-  // Ricarica quando cambiano i filtri (dopo il caricamento iniziale)
+  // Ricarica quando cambiano i filtri select (immediato)
   useEffect(() => {
     if (!initialLoad) {
       loadData(1, pagination.pageSize);
     }
     setInitialLoad(false);
-  }, [filterType, filterYear, sortOrder]);
+  }, [filterType, filterYear, sortOrder, sortField]);
+
+  // Ricarica quando cambiano i filtri testo (con debounce)
+  useEffect(() => {
+    if (initialLoad) return;
+    const timer = setTimeout(() => {
+      loadData(1, pagination.pageSize);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [filterSubject, filterNotes, filterNotes2, filterBudgetItem]);
 
   const loadData = async (page: number, pageSize: number) => {
     setLoading(true);
     try {
+      // Se ordiniamo per data, aggiungiamo createdAt come ordinamento secondario
+      const orderBy = sortField === 'date'
+        ? { date: sortOrder, createdAt: sortOrder }
+        : { [sortField]: sortOrder };
+
       const filtersObj: any = {
         page,
         pageSize,
         relations: { category: true },
-        orderBy: { date: sortOrder },
+        orderBy,
         andFilters: {},
       };
 
@@ -85,12 +109,31 @@ export default function TransactionsPage() {
         const endDate = `${filterYear}-12-31`;
         filtersObj.andFilters.between = { date: [startDate, endDate] };
       }
-      
+
       if (filterType !== 'ALL') {
         if (!filtersObj.andFilters.equal) {
           filtersObj.andFilters.equal = {};
         }
         filtersObj.andFilters.equal.type = filterType;
+      }
+
+      // Filtri di testo (like)
+      if (filterSubject || filterNotes || filterNotes2 || filterBudgetItem) {
+        if (!filtersObj.andFilters.like) {
+          filtersObj.andFilters.like = {};
+        }
+        if (filterSubject) {
+          filtersObj.andFilters.like.subject = filterSubject;
+        }
+        if (filterNotes) {
+          filtersObj.andFilters.like.notes = filterNotes;
+        }
+        if (filterNotes2) {
+          filtersObj.andFilters.like.notes2 = filterNotes2;
+        }
+        if (filterBudgetItem) {
+          filtersObj.andFilters.like.budgetItem = filterBudgetItem;
+        }
       }
 
       const filters = JSON.stringify(filtersObj);
@@ -115,6 +158,7 @@ export default function TransactionsPage() {
   };
 
   const handleSave = async (values: Record<string, unknown>) => {
+    setSaving(true);
     try {
       const payload: any = {
         ...values,
@@ -144,6 +188,8 @@ export default function TransactionsPage() {
       loadData(pagination.current, pagination.pageSize);
     } catch (error) {
       message.error('Errore nel salvataggio');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -163,12 +209,14 @@ export default function TransactionsPage() {
       form.setFieldsValue({
         ...transaction,
         date: dayjs(transaction.date),
+        amount: Number(transaction.amount),
+        originalAmount: transaction.originalAmount ? Number(transaction.originalAmount) : undefined,
       });
       setCategoryName(transaction.category?.name || '');
       setCategoryUuid(transaction.categoryUuid);
     } else {
       form.resetFields();
-      form.setFieldsValue({ date: dayjs(), type: 'EXPENSE' });
+      form.setFieldsValue({ date: dayjs(), type: 'EXPENSE', paymentMethod: 'CASH' });
       setCategoryName('');
       setCategoryUuid(undefined);
     }
@@ -350,25 +398,33 @@ export default function TransactionsPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Movimenti Finanziari</h1>
-        <Space>
-          <Button icon={<UploadOutlined />} onClick={() => setImportModalOpen(true)}>
-            Importa Excel
-          </Button>
+      <div className={`flex ${isMobile ? 'flex-col gap-3' : 'justify-between items-center'} mb-4`}>
+        <h1 className="text-xl md:text-2xl font-bold">Movimenti Finanziari</h1>
+        <Space size={isMobile ? 'small' : 'middle'} wrap>
+          {!isMobile && (
+            <Button icon={<UploadOutlined />} onClick={() => setImportModalOpen(true)}>
+              Importa Excel
+            </Button>
+          )}
           <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>
-            Nuovo Movimento
+            {isMobile ? 'Nuovo' : 'Nuovo Movimento'}
           </Button>
+          {isMobile && (
+            <Button icon={<UploadOutlined />} onClick={() => setImportModalOpen(true)}>
+              Importa
+            </Button>
+          )}
         </Space>
       </div>
 
-      <div className="flex gap-4 mb-4">
-        <div>
-          <span className="mr-2">Anno:</span>
+      <div className={`flex ${isMobile ? 'flex-col gap-2' : 'flex-wrap gap-4 items-end'} mb-4`}>
+        <div className={isMobile ? 'flex items-center justify-between' : ''}>
+          <span className="mr-2 text-sm">Anno:</span>
           <Select
             value={filterYear}
             onChange={setFilterYear}
-            style={{ width: 120 }}
+            style={{ width: isMobile ? 100 : 100 }}
+            size={isMobile ? 'small' : 'middle'}
           >
             <Select.Option value={null}>Tutti</Select.Option>
             {years.map(year => (
@@ -376,32 +432,85 @@ export default function TransactionsPage() {
             ))}
           </Select>
         </div>
-        <div>
-          <span className="mr-2">Tipo:</span>
+        <div className={isMobile ? 'flex items-center justify-between' : ''}>
+          <span className="mr-2 text-sm">Tipo:</span>
           <Select
             value={filterType}
             onChange={setFilterType}
-            style={{ width: 120 }}
+            style={{ width: isMobile ? 100 : 100 }}
+            size={isMobile ? 'small' : 'middle'}
           >
             <Select.Option value="ALL">Tutti</Select.Option>
             <Select.Option value="INCOME">Entrate</Select.Option>
             <Select.Option value="EXPENSE">Uscite</Select.Option>
           </Select>
         </div>
-        <div>
-          <span className="mr-2">Ordine:</span>
+        <div className={isMobile ? 'flex items-center justify-between' : ''}>
+          <span className="mr-2 text-sm">Ordina per:</span>
+          <Select
+            value={sortField}
+            onChange={setSortField}
+            style={{ width: isMobile ? 130 : 140 }}
+            size={isMobile ? 'small' : 'middle'}
+          >
+            <Select.Option value="date">Data</Select.Option>
+            <Select.Option value="type">Tipo</Select.Option>
+            <Select.Option value="subject">Soggetto</Select.Option>
+            <Select.Option value="notes">Note</Select.Option>
+            <Select.Option value="notes2">Note 2</Select.Option>
+            <Select.Option value="budgetItem">Voce Bilancio</Select.Option>
+            <Select.Option value="amount">Importo</Select.Option>
+          </Select>
+        </div>
+        <div className={isMobile ? 'flex items-center justify-between' : ''}>
           <Select
             value={sortOrder}
             onChange={setSortOrder}
-            style={{ width: 150 }}
+            style={{ width: isMobile ? 80 : 80 }}
+            size={isMobile ? 'small' : 'middle'}
           >
-            <Select.Option value="DESC">Data ↓ (recenti)</Select.Option>
-            <Select.Option value="ASC">Data ↑ (vecchi)</Select.Option>
+            <Select.Option value="DESC">↓</Select.Option>
+            <Select.Option value="ASC">↑</Select.Option>
           </Select>
         </div>
-        <div className="ml-auto">
-          <Tag color="blue">Totale: {pagination.total} movimenti</Tag>
+        <div className={isMobile ? '' : 'ml-auto'}>
+          <Tag color="blue">Totale: {pagination.total}</Tag>
         </div>
+      </div>
+
+      <div className={`flex ${isMobile ? 'flex-col gap-2' : 'flex-wrap gap-4'} mb-4`}>
+        <Input
+          placeholder="Filtra Soggetto..."
+          value={filterSubject}
+          onChange={(e) => setFilterSubject(e.target.value)}
+          style={{ width: isMobile ? '100%' : 180 }}
+          size={isMobile ? 'small' : 'middle'}
+          allowClear
+        />
+        <Input
+          placeholder="Filtra Note..."
+          value={filterNotes}
+          onChange={(e) => setFilterNotes(e.target.value)}
+          style={{ width: isMobile ? '100%' : 180 }}
+          size={isMobile ? 'small' : 'middle'}
+          allowClear
+        />
+        <Input
+          placeholder="Filtra Note 2..."
+          value={filterNotes2}
+          onChange={(e) => setFilterNotes2(e.target.value)}
+          style={{ width: isMobile ? '100%' : 180 }}
+          size={isMobile ? 'small' : 'middle'}
+          allowClear
+        />
+        <Input
+          placeholder="Filtra Voce Bilancio..."
+          value={filterBudgetItem}
+          onChange={(e) => setFilterBudgetItem(e.target.value)}
+          style={{ width: isMobile ? '100%' : 180 }}
+          size={isMobile ? 'small' : 'middle'}
+          allowClear
+        />
       </div>
 
       <Table
@@ -409,14 +518,16 @@ export default function TransactionsPage() {
         dataSource={transactions}
         rowKey="uuid"
         loading={loading}
-        scroll={{ x: 1400 }}
+        scroll={{ x: 1000 }}
+        size={isMobile ? 'small' : 'middle'}
         pagination={{
           current: pagination.current,
           pageSize: pagination.pageSize,
           total: pagination.total,
-          showSizeChanger: true,
-          showTotal: (total, range) => `${range[0]}-${range[1]} di ${total}`,
+          showSizeChanger: !isMobile,
+          showTotal: isMobile ? undefined : (total, range) => `${range[0]}-${range[1]} di ${total}`,
           pageSizeOptions: ['10', '20', '50', '100'],
+          simple: isMobile,
         }}
         onChange={handleTableChange}
       />
@@ -428,12 +539,18 @@ export default function TransactionsPage() {
           setModalOpen(false);
           setCategoryName('');
           setCategoryUuid(undefined);
+          setEditingTransaction(null);
+          form.resetFields();
         }}
         onOk={() => form.submit()}
-        width={600}
+        confirmLoading={saving}
+        okText="Salva"
+        cancelText="Annulla"
+        width={isMobile ? '100%' : 600}
+        style={isMobile ? { top: 20, maxWidth: 'calc(100vw - 32px)', margin: '0 auto' } : undefined}
       >
-        <Form form={form} layout="vertical" onFinish={handleSave}>
-          <div className="grid grid-cols-2 gap-4">
+        <Form form={form} layout="vertical" onFinish={handleSave} onFinishFailed={(errorInfo) => { console.log('Form validation failed:', errorInfo); message.error('Compila tutti i campi obbligatori'); }} size={isMobile ? 'middle' : 'large'}>
+          <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
             <Form.Item name="date" label="Data" rules={[{ required: true }]}>
               <DatePicker className="w-full" format="DD/MM/YYYY" />
             </Form.Item>
@@ -444,7 +561,7 @@ export default function TransactionsPage() {
               </Select>
             </Form.Item>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
             <Form.Item name="amount" label="Importo" rules={[{ required: true }]}>
               <InputNumber min={0} precision={2} suffix="€" className="w-full" />
             </Form.Item>

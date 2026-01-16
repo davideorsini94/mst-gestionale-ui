@@ -2,6 +2,7 @@ import { createHashRouter } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import LoginPage from '../pages/Login/LoginPage';
 import HomePage from '../pages/Home/HomePage';
+import ProfilePage from '../pages/Profile/ProfilePage';
 import UsersPage from '../pages/Users/UsersPage';
 import RolesPage from '../pages/Roles/RolesPage';
 import RoleDetailPage from '../pages/Roles/RoleDetailPage';
@@ -22,6 +23,7 @@ export const authenticatedRouter = createHashRouter([
     element: <MainLayout />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'profile', element: <ProfilePage /> },
       { path: 'users', element: <UsersPage /> },
       { path: 'roles', element: <RolesPage /> },
       { path: 'roles/:code', element: <RoleDetailPage /> },
