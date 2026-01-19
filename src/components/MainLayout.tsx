@@ -95,7 +95,7 @@ export default function MainLayout() {
   );
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100dvh' }}>
       {/* Desktop Sidebar */}
       {!isMobile && (
         <Sider

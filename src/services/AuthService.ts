@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// In production, always use relative /api path to go through nginx proxy
+// In development, use VITE_API_URL if set
+const API_URL = import.meta.env.PROD ? '/api' : (import.meta.env.VITE_API_URL || '/api');
 
 export interface User {
   uuid: string;
