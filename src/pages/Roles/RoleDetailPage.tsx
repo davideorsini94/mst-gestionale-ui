@@ -6,9 +6,9 @@ import {
   Checkbox,
   Button,
   Space,
-  message,
   Spin,
 } from 'antd';
+import { message } from '../../services/notify';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import { apiService } from '../../services/ApiService';
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Tag, Space, message, Input } from 'antd';
+import { Table, Button, Tag, Space, Input } from 'antd';
+import { message } from '../../services/notify';
 import { PlusOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/ApiService';
@@ -148,6 +149,7 @@ export default function VehiclesPage() {
         <h1 className="text-2xl font-bold">Veicoli</h1>
         <Space>
           <Input.Search
+            enterButton={<Button icon={<SearchOutlined />} aria-label="Cerca" />}
             placeholder="Cerca..."
             prefix={<SearchOutlined />}
             value={search}

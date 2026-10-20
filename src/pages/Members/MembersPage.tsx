@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Tag, Space, message, Input, Select, Tooltip, Grid } from 'antd';
+import { Table, Button, Tag, Space, Input, Select, Tooltip, Grid, theme } from 'antd';
+import { message } from '../../services/notify';
 import { PlusOutlined, EyeOutlined, SearchOutlined, FileTextOutlined, WarningOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/ApiService';
@@ -57,6 +58,7 @@ export default function MembersPage() {
     total: 0,
   });
   const navigate = useNavigate();
+  const { token } = theme.useToken();
 
   useEffect(() => {
     loadData(1, 10);
@@ -150,14 +152,14 @@ export default function MembersPage() {
         if (expired) {
           return (
             <Tooltip title={`Visita medica scaduta il ${dayjs(record.medicalExamExpiry).format('DD/MM/YYYY')}`}>
-              <WarningOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />
+              <WarningOutlined style={{ color: token.colorError, fontSize: 16 }} aria-label="Visita medica scaduta" />
             </Tooltip>
           );
         }
         if (expiring) {
           return (
             <Tooltip title={`Visita medica in scadenza il ${dayjs(record.medicalExamExpiry).format('DD/MM/YYYY')}`}>
-              <WarningOutlined style={{ color: '#faad14', fontSize: 16 }} />
+              <WarningOutlined style={{ color: token.colorWarning, fontSize: 16 }} aria-label="Visita medica in scadenza" />
             </Tooltip>
           );
         }
@@ -199,6 +201,7 @@ export default function MembersPage() {
           size={isMobile ? 'small' : 'middle'}
           icon={<EyeOutlined />}
           onClick={() => navigate(`/members/${record.uuid}`)}
+          aria-label={`Dettagli ${record.lastName} ${record.firstName}`}
         >
           {isMobile ? '' : 'Dettagli'}
         </Button>
@@ -208,6 +211,8 @@ export default function MembersPage() {
 
   const rowSelection = {
     selectedRowKeys,
+    // mantiene la selezione cambiando pagina (lista alberghiera su più pagine)
+    preserveSelectedRowKeys: true,
     onChange: (keys: React.Key[]) => setSelectedRowKeys(keys as string[]),
     getCheckboxProps: (record: Member) => ({
       disabled: !record.isCompetitor,
@@ -221,6 +226,7 @@ export default function MembersPage() {
         <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 'bold', margin: 0 }}>Tesserati</h1>
         <Space wrap size={isMobile ? 'small' : 'middle'}>
           <Input.Search
+            enterButton={<Button icon={<SearchOutlined />} aria-label="Cerca" />}
             placeholder="Cerca..."
             prefix={<SearchOutlined />}
             value={search}

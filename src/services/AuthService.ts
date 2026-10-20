@@ -1,4 +1,12 @@
 import axios from 'axios';
+import {
+  hasPreferences,
+  normalizePreferences,
+  readStoredPreferences,
+  writeStoredPreferences,
+  type UserPreferences,
+} from '../theme/preferences';
+import { clearCacheStorage, withTimeout } from './appUpdate';
 
 // In production, always use relative /api path to go through nginx proxy
 // In development, use VITE_API_URL if set
@@ -15,6 +23,7 @@ export interface User {
     description?: string;
     capabilities?: { capability: string }[];
   };
+  preferences?: UserPreferences;
 }
 
 export interface LoginResponse {
@@ -57,13 +66,22 @@ class AuthService {
     localStorage.setItem(this.tokenKey, access_token);
     localStorage.setItem(this.userKey, JSON.stringify(user));
 
+    // preferenze di aspetto dell'utente → localStorage (lette prima del render, niente flash)
+    if (hasPreferences(user?.preferences)) {
+      writeStoredPreferences(normalizePreferences(user.preferences, readStoredPreferences()));
+    }
+
     return response.data;
   }
 
   logout(): void {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.userKey);
-    window.location.href = '/';
+    // le preferenze (mst_prefs) restano: la pagina di login mantiene il tema.
+    // Svuota Cache Storage (best effort, al massimo 1,5 s di attesa).
+    withTimeout(clearCacheStorage(), 1500).finally(() => {
+      window.location.href = '/';
+    });
   }
 
   hasCapability(capability: string): boolean {

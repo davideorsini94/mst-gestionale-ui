@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Table, Button, Tag, message, Space, Tabs, Popconfirm, Tooltip, Card, Statistic, Row, Col } from 'antd';
+import { useState, useEffect, useCallback } from 'react';
+import { Table, Button, Tag, Space, Tabs, Tooltip, Card, Statistic, Row, Col, Grid, theme } from 'antd';
+import { message } from '../../services/notify';
 import { ReloadOutlined, SendOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { apiService } from '../../services/ApiService';
@@ -43,26 +44,83 @@ const statusLabels: Record<string, string> = {
   CANCELLED: 'Annullato',
 };
 
+type ReminderStatus = Reminder['status'];
+type TabKey = 'all' | 'scheduled' | 'sent' | 'failed';
+
+interface ReminderCounts {
+  all: number;
+  SCHEDULED: number;
+  SENT: number;
+  FAILED: number;
+  CANCELLED: number;
+}
+
+const tabStatus: Record<TabKey, ReminderStatus | null> = {
+  all: null,
+  scheduled: 'SCHEDULED',
+  sent: 'SENT',
+  failed: 'FAILED',
+};
+
+const { useBreakpoint } = Grid;
+
 export default function RemindersPage() {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
+  const { token } = theme.useToken();
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [counts, setCounts] = useState<ReminderCounts | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>('all');
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
   const [loading, setLoading] = useState(true);
   const [checkingNow, setCheckingNow] = useState(false);
   const [resending, setResending] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadReminders();
-  }, []);
-
-  const loadReminders = async () => {
+  // Paginazione lato server: GET /reminders?filters={page,pageSize,andFilters.equal.status}
+  const loadReminders = useCallback(async (tab: TabKey, page: number, pageSize: number) => {
     setLoading(true);
     try {
-      const [data] = await apiService.get<[Reminder[], number]>('/reminders');
+      const filters: Record<string, unknown> = { page, pageSize };
+      const status = tabStatus[tab];
+      if (status) {
+        filters.andFilters = { equal: { status } };
+      }
+      const [data, total] = await apiService.get<[Reminder[], number]>(
+        `/reminders?filters=${encodeURIComponent(JSON.stringify(filters))}`
+      );
       setReminders(data);
+      setPagination({ current: page, pageSize, total });
     } catch (error) {
       message.error('Errore nel caricamento dei reminder');
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Contatori dei tab: GET /reminders/counts
+  const loadCounts = useCallback(async () => {
+    try {
+      const data = await apiService.get<ReminderCounts>('/reminders/counts');
+      setCounts(data);
+    } catch (error) {
+      console.error('Errore nel caricamento dei contatori reminder:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReminders('all', 1, 20);
+    loadCounts();
+  }, [loadReminders, loadCounts]);
+
+  const refresh = () => {
+    loadReminders(activeTab, pagination.current, pagination.pageSize);
+    loadCounts();
+  };
+
+  const handleTabChange = (key: string) => {
+    const tab = key as TabKey;
+    setActiveTab(tab);
+    loadReminders(tab, 1, pagination.pageSize);
   };
 
   const handleCheckNow = async () => {
@@ -70,7 +128,7 @@ export default function RemindersPage() {
     try {
       await apiService.post('/reminders/check-now');
       message.success('Controllo reminder completato');
-      loadReminders();
+      refresh();
     } catch (error) {
       message.error('Errore durante il controllo');
     } finally {
@@ -83,7 +141,7 @@ export default function RemindersPage() {
     try {
       await apiService.post(`/reminders/${uuid}/resend`);
       message.success('Reminder reinviato');
-      loadReminders();
+      refresh();
     } catch (error) {
       message.error('Errore nel reinvio');
     } finally {
@@ -91,9 +149,7 @@ export default function RemindersPage() {
     }
   };
 
-  const scheduledReminders = reminders.filter(r => r.status === 'SCHEDULED');
-  const sentReminders = reminders.filter(r => r.status === 'SENT');
-  const failedReminders = reminders.filter(r => r.status === 'FAILED');
+  const countLabel = (value: number | undefined) => (value === undefined ? '' : ` (${value})`);
 
   const columns = [
     {
@@ -156,12 +212,13 @@ export default function RemindersPage() {
                 size="small"
                 loading={resending === record.uuid}
                 onClick={() => handleResend(record.uuid)}
+                aria-label="Reinvia ora"
               />
             </Tooltip>
           )}
           {record.status === 'FAILED' && record.errorMessage && (
             <Tooltip title={record.errorMessage}>
-              <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+              <ExclamationCircleOutlined style={{ color: token.colorError }} aria-label="Dettaglio errore" />
             </Tooltip>
           )}
         </Space>
@@ -172,76 +229,40 @@ export default function RemindersPage() {
   const tabItems = [
     {
       key: 'all',
-      label: `Tutti (${reminders.length})`,
-      children: (
-        <Table
-          columns={columns}
-          dataSource={reminders}
-          rowKey="uuid"
-          loading={loading}
-          pagination={{ pageSize: 20, showSizeChanger: true }}
-        />
-      ),
+      label: `Tutti${countLabel(counts?.all)}`,
     },
     {
       key: 'scheduled',
       label: (
         <span>
-          <ClockCircleOutlined /> Programmati ({scheduledReminders.length})
+          <ClockCircleOutlined /> Programmati{countLabel(counts?.SCHEDULED)}
         </span>
-      ),
-      children: (
-        <Table
-          columns={columns}
-          dataSource={scheduledReminders}
-          rowKey="uuid"
-          loading={loading}
-          pagination={{ pageSize: 20 }}
-        />
       ),
     },
     {
       key: 'sent',
       label: (
         <span>
-          <CheckCircleOutlined /> Inviati ({sentReminders.length})
+          <CheckCircleOutlined /> Inviati{countLabel(counts?.SENT)}
         </span>
-      ),
-      children: (
-        <Table
-          columns={columns}
-          dataSource={sentReminders}
-          rowKey="uuid"
-          loading={loading}
-          pagination={{ pageSize: 20 }}
-        />
       ),
     },
     {
       key: 'failed',
       label: (
         <span>
-          <ExclamationCircleOutlined /> Falliti ({failedReminders.length})
+          <ExclamationCircleOutlined /> Falliti{countLabel(counts?.FAILED)}
         </span>
-      ),
-      children: (
-        <Table
-          columns={columns}
-          dataSource={failedReminders}
-          rowKey="uuid"
-          loading={loading}
-          pagination={{ pageSize: 20 }}
-        />
       ),
     },
   ];
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Gestione Reminder Scadenze</h1>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadReminders} loading={loading}>
+      <div className={`flex ${isMobile ? 'flex-col gap-3' : 'justify-between items-center'} mb-4`}>
+        <h1 className="text-2xl font-bold" style={{ margin: 0 }}>Gestione Reminder Scadenze</h1>
+        <Space wrap>
+          <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
             Aggiorna
           </Button>
           <Button type="primary" icon={<ClockCircleOutlined />} onClick={handleCheckNow} loading={checkingNow}>
@@ -250,49 +271,67 @@ export default function RemindersPage() {
         </Space>
       </div>
 
-      <Row gutter={16} className="mb-4">
-        <Col span={6}>
+      <Row gutter={[16, 16]} className="mb-4">
+        <Col xs={12} md={6}>
           <Card>
             <Statistic
               title="Totale Reminder"
-              value={reminders.length}
+              value={counts?.all ?? '-'}
               prefix={<ClockCircleOutlined />}
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} md={6}>
           <Card>
             <Statistic
               title="Programmati"
-              value={scheduledReminders.length}
-              valueStyle={{ color: '#1890ff' }}
+              value={counts?.SCHEDULED ?? '-'}
+              valueStyle={{ color: token.colorPrimary }}
               prefix={<ClockCircleOutlined />}
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} md={6}>
           <Card>
             <Statistic
               title="Inviati"
-              value={sentReminders.length}
-              valueStyle={{ color: '#52c41a' }}
+              value={counts?.SENT ?? '-'}
+              valueStyle={{ color: token.colorSuccessText }}
               prefix={<CheckCircleOutlined />}
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} md={6}>
           <Card>
             <Statistic
               title="Falliti"
-              value={failedReminders.length}
-              valueStyle={{ color: '#ff4d4f' }}
+              value={counts?.FAILED ?? '-'}
+              valueStyle={{ color: token.colorErrorText }}
               prefix={<ExclamationCircleOutlined />}
             />
           </Card>
         </Col>
       </Row>
 
-      <Tabs items={tabItems} defaultActiveKey="all" />
+      <Tabs items={tabItems} activeKey={activeTab} onChange={handleTabChange} />
+      <Table
+        columns={columns}
+        dataSource={reminders}
+        rowKey="uuid"
+        loading={loading}
+        scroll={{ x: 900 }}
+        size={isMobile ? 'small' : 'middle'}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: !isMobile,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          showTotal: isMobile ? undefined : (total, range) => `${range[0]}-${range[1]} di ${total}`,
+          simple: isMobile,
+        }}
+        onChange={(pag) => loadReminders(activeTab, pag.current || 1, pag.pageSize || pagination.pageSize)}
+      />
     </div>
   );
 }

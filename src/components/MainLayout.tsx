@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Avatar, Dropdown, theme, Drawer, Grid } from 'antd';
+import { Layout, Menu, Button, Avatar, Dropdown, Drawer, Grid, type MenuProps } from 'antd';
 import {
   HomeOutlined,
   UserOutlined,
@@ -16,10 +16,17 @@ import {
   IdcardOutlined,
   BellOutlined,
   MenuOutlined,
+  SunOutlined,
+  MoonOutlined,
+  DesktopOutlined,
+  CheckOutlined,
 } from '@ant-design/icons';
 import { authService } from '../services/AuthService';
+import { useThemePrefs } from '../theme/ThemeProvider';
+import type { ThemeMode } from '../theme/preferences';
+import clubLogo from '../assets/logo-milano-ski-team.png';
 
-const { Header, Sider, Content } = Layout;
+const { Sider, Content } = Layout;
 const { useBreakpoint } = Grid;
 
 // Mappa menu items con le capabilities richieste (null = accessibile a tutti)
@@ -37,14 +44,38 @@ const allMenuItems = [
   { key: '/settings', icon: <SettingOutlined />, label: 'Impostazioni', capability: 'CAN_MANAGE_SETTINGS' },
 ];
 
+const themeOptions: { mode: ThemeMode; label: string; icon: React.ReactNode }[] = [
+  { mode: 'light', label: 'Chiaro', icon: <SunOutlined /> },
+  { mode: 'dark', label: 'Scuro', icon: <MoonOutlined /> },
+  { mode: 'system', label: 'Automatico', icon: <DesktopOutlined /> },
+];
+
+/** Stemma del club in fondo alla navigazione (contenuto della sidebar, non un controllo: nessun vetro). */
+function ClubLogo({ compact }: { compact: boolean }) {
+  return (
+    <div className={`mst-club-logo${compact ? ' mst-club-logo--compact' : ''}`}>
+      <img src={clubLogo} alt="Milano Ski Team" draggable={false} />
+    </div>
+  );
+}
+
+function BrandMark({ compact }: { compact: boolean }) {
+  return (
+    <div className={`mst-brand ${compact ? 'mst-brand--compact' : ''}`}>
+      <span className="mst-brand-mark" aria-hidden="true">MST</span>
+      {!compact && <span className="mst-brand-name">MST Gestionale</span>}
+    </div>
+  );
+}
+
 export default function MainLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { token } = theme.useToken();
   const user = authService.getUser();
   const screens = useBreakpoint();
+  const { mode, setMode } = useThemePrefs();
 
   // Determina se siamo su mobile (< md breakpoint)
   const isMobile = !screens.md;
@@ -55,9 +86,9 @@ export default function MainLayout() {
   }, [location.pathname]);
 
   // Filtra menu items in base alle capabilities dell'utente (null = accessibile a tutti)
-  const menuItems = allMenuItems.filter((item) =>
-    item.capability === null || authService.hasCapability(item.capability)
-  );
+  const menuItems = allMenuItems
+    .filter((item) => item.capability === null || authService.hasCapability(item.capability))
+    .map(({ key, icon, label }) => ({ key, icon, label }));
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -70,104 +101,121 @@ export default function MainLayout() {
     authService.logout();
   };
 
-  const userMenuItems = [
+  const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Utente';
+
+  const userMenuItems: MenuProps['items'] = [
     {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: 'Esci',
-      onClick: handleLogout,
+      key: 'theme',
+      type: 'group',
+      label: 'Tema',
+      children: themeOptions.map((opt) => ({
+        key: `theme:${opt.mode}`,
+        icon: opt.icon,
+        label: (
+          <span className="mst-menu-check">
+            {opt.label}
+            {mode === opt.mode && <CheckOutlined aria-hidden="true" />}
+          </span>
+        ),
+      })),
     },
+    { type: 'divider' },
+    { key: 'profile', icon: <UserOutlined />, label: 'Profilo' },
+    { key: 'logout', icon: <LogoutOutlined />, label: 'Esci', danger: true },
   ];
 
-  const siderContent = (
-    <>
-      <div className="p-4 text-center font-bold text-lg border-b border-gray-200">
-        {collapsed && !isMobile ? 'MST' : 'MST Gestionale'}
-      </div>
-      <Menu
-        mode="inline"
-        selectedKeys={[location.pathname]}
-        items={menuItems}
-        onClick={handleMenuClick}
-        style={{ borderRight: 0 }}
-      />
-    </>
+  const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
+    if (key.startsWith('theme:')) {
+      setMode(key.slice('theme:'.length) as ThemeMode);
+    } else if (key === 'profile') {
+      navigate('/profile');
+    } else if (key === 'logout') {
+      handleLogout();
+    }
+  };
+
+  const navMenu = (
+    <Menu
+      mode="inline"
+      selectedKeys={[location.pathname]}
+      items={menuItems}
+      onClick={handleMenuClick}
+      className="mst-nav-menu"
+    />
   );
 
   return (
-    <Layout style={{ minHeight: '100dvh' }}>
-      {/* Desktop Sidebar */}
+    <Layout className="mst-shell" hasSider={!isMobile}>
+      {/* Desktop Sidebar — vetro flottante staccato dai bordi */}
       {!isMobile && (
         <Sider
           trigger={null}
           collapsible
           collapsed={collapsed}
-          style={{ background: token.colorBgContainer }}
-          width={220}
+          width={232}
           collapsedWidth={80}
+          theme="light"
+          className="mst-sider"
+          aria-label="Navigazione principale"
         >
-          {siderContent}
+          <BrandMark compact={collapsed} />
+          <nav className="mst-sider-nav">{navMenu}</nav>
+          <ClubLogo compact={collapsed} />
         </Sider>
       )}
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer — pannello vetro */}
       {isMobile && (
         <Drawer
           placement="left"
           open={drawerVisible}
           onClose={() => setDrawerVisible(false)}
           width={280}
+          rootClassName="mst-nav-drawer"
           styles={{ body: { padding: 0 } }}
-          title="MST Gestionale"
+          title={<BrandMark compact={false} />}
+          closable={{ 'aria-label': 'Chiudi menu' }}
+          footer={<ClubLogo compact={false} />}
         >
-          <Menu
-            mode="inline"
-            selectedKeys={[location.pathname]}
-            items={menuItems}
-            onClick={handleMenuClick}
-            style={{ borderRight: 0 }}
-          />
+          <nav aria-label="Navigazione principale">{navMenu}</nav>
         </Drawer>
       )}
 
-      <Layout>
-        <Header
-          style={{
-            padding: isMobile ? '0 12px' : '0 24px',
-            background: token.colorBgContainer,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            position: isMobile ? 'sticky' : 'relative',
-            top: 0,
-            zIndex: 10,
-            boxShadow: isMobile ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
-          }}
-        >
-          <Button
-            type="text"
-            icon={isMobile ? <MenuOutlined /> : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
-            onClick={() => isMobile ? setDrawerVisible(true) : setCollapsed(!collapsed)}
-            style={{ fontSize: 18 }}
-          />
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <div className="flex items-center gap-2 cursor-pointer">
-              <Avatar icon={<UserOutlined />} size={isMobile ? 'small' : 'default'} />
-              {!isMobile && <span>{user?.firstName || user?.username}</span>}
-            </div>
-          </Dropdown>
-        </Header>
-        <Content
-          style={{
-            margin: isMobile ? '12px' : '24px',
-            padding: isMobile ? 12 : 24,
-            background: token.colorBgContainer,
-            borderRadius: token.borderRadiusLG,
-            minHeight: 280,
-            overflow: 'auto',
-          }}
-        >
-          <Outlet />
+      <Layout className="mst-main">
+        {/* Barra superiore flottante (capsula) + scroll-edge effect */}
+        <div className="mst-header-wrap">
+          <header className="mst-toolbar">
+            <Button
+              type="text"
+              shape="circle"
+              className="mst-nav-btn"
+              icon={isMobile ? <MenuOutlined /> : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
+              onClick={() => (isMobile ? setDrawerVisible(true) : setCollapsed(!collapsed))}
+              aria-label={isMobile ? 'Apri menu di navigazione' : (collapsed ? 'Espandi barra laterale' : 'Comprimi barra laterale')}
+              aria-expanded={isMobile ? drawerVisible : !collapsed}
+            />
+            {isMobile && <span className="mst-toolbar-title">MST Gestionale</span>}
+            <div className="mst-toolbar-spacer" />
+            <Dropdown
+              menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
+              placement="bottomRight"
+              trigger={['click']}
+            >
+              <Button
+                type="text"
+                className="mst-nav-btn mst-user-btn"
+                aria-label={`Menu utente: ${displayName}`}
+              >
+                <Avatar icon={<UserOutlined />} size={isMobile ? 28 : 32} />
+                {!isMobile && <span className="mst-user-name">{user?.firstName || user?.username}</span>}
+              </Button>
+            </Dropdown>
+          </header>
+        </div>
+        <Content className="mst-content">
+          <div className="mst-content-surface">
+            <Outlet />
+          </div>
         </Content>
       </Layout>
     </Layout>

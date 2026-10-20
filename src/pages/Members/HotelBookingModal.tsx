@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, Button, Spin, Divider, message } from 'antd';
+import { Modal, Button, Spin, Divider } from 'antd';
+import { message } from '../../services/notify';
 import { PrinterOutlined, CopyOutlined } from '@ant-design/icons';
 import { apiService } from '../../services/ApiService';
 import dayjs from 'dayjs';

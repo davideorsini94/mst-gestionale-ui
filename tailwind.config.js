@@ -1,4 +1,19 @@
 /** @type {import('tailwindcss').Config} */
+
+/*
+ * I colori seguono il tema (chiaro/scuro) tramite le CSS variables --mst-*
+ * generate da src/theme/palette.ts (vedi src/theme/cssVars.ts).
+ * gray-* e red-* sono canali "R G B" → supportano anche i modificatori di opacità
+ * (es. bg-gray-100/50). Le classi esistenti (text-gray-600, bg-gray-100,
+ * border-gray-200, text-red-500, …) cambiano quindi automaticamente col tema.
+ */
+const channels = (name) => `rgb(var(--mst-${name}) / <alpha-value>)`;
+const scale = (name, steps) =>
+  Object.fromEntries(steps.map((step) => [step, channels(`${name}-${step}`)]));
+
+const GRAY_STEPS = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+const RED_STEPS = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900'];
+
 export default {
   content: [
     "./index.html",
@@ -7,42 +22,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        "background-primary": '#f5f5f5',
-        "background-secondary": '#ffffff',
-        "background-tertiary": '#fafafa',
+        gray: scale('gray', GRAY_STEPS),
+        red: scale('red', RED_STEPS),
 
-        "border-primary": '#d9d9d9',
-        "border-secondary": '#e8e8e8',
-
-        "text-primary": '#262626',
-        "text-secondary": '#595959',
-        "text-tertiary": '#8c8c8c',
-
-        "primary": '#1890ff',
-        "primary-light": '#40a9ff',
-        "primary-dark": '#096dd9',
-        
-        "secondary": '#52c41a',
-        "secondary-light": '#73d13d',
-        "secondary-dark": '#389e0d',
-        
-        "success": '#52c41a',
-        "success-hover": '#73d13d',
-        
-        "fail": '#ff4d4f',
-        "fail-hover": '#ff7875',
-        
-        "warn": '#faad14',
-        "warn-hover": '#ffc53d',
-        
-        "gray-200": '#f0f0f0',
-        "gray-300": '#d9d9d9',
-        "gray-400": '#bfbfbf',
-        
-        "menu": '#001529',
-        "menu-dark": '#000c17',
-        "menu-light": '#002140',
-      }
+        // token semantici
+        primary: 'var(--mst-primary)',
+        'on-primary': 'var(--mst-on-primary)',
+        surface: 'var(--mst-surface)',
+        'surface-elevated': 'var(--mst-elevated)',
+        'surface-sunken': 'var(--mst-sunken)',
+        fg: 'var(--mst-text)',
+        'fg-secondary': 'var(--mst-text-secondary)',
+        'fg-tertiary': 'var(--mst-text-tertiary)',
+        success: 'var(--mst-success)',
+        warn: 'var(--mst-warning)',
+        danger: 'var(--mst-error)',
+      },
+      borderColor: {
+        DEFAULT: 'var(--mst-border)',
+      },
     },
   },
   plugins: [],

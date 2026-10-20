@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, List, Tag, Spin, Select, Alert, Button, Grid } from 'antd';
+import { Card, Row, Col, Statistic, List, Tag, Spin, Select, Alert, Button, Grid, theme } from 'antd';
 import {
   TeamOutlined,
   CarOutlined,
@@ -12,6 +12,9 @@ import { apiService } from '../../services/ApiService';
 import { authService } from '../../services/AuthService';
 
 const { useBreakpoint } = Grid;
+
+/** Liste della dashboard: 5 elementi per pagina (lato client) */
+const LIST_PAGINATION = { pageSize: 5, size: 'small' as const, hideOnSinglePage: true, align: 'center' as const };
 
 interface VehicleExpiry {
   uuid: string;
@@ -68,6 +71,7 @@ export default function HomePage() {
   const [expiryDays, setExpiryDays] = useState(30);
   const user = authService.getUser();
   const navigate = useNavigate();
+  const { token } = theme.useToken();
 
   useEffect(() => {
     loadData();
@@ -130,7 +134,7 @@ export default function HomePage() {
               <Statistic
                 title="Scadenze veicoli"
                 value={expiringItems.length}
-                prefix={<WarningOutlined style={{ color: '#faad14' }} />}
+                prefix={<WarningOutlined style={{ color: token.colorWarning }} />}
               />
             </Card>
           </Col>
@@ -142,7 +146,7 @@ export default function HomePage() {
               title={
                 <div className="flex justify-between items-center">
                   <span>
-                    <WarningOutlined className="mr-2" style={{ color: '#faad14' }} />
+                    <WarningOutlined className="mr-2" style={{ color: token.colorWarning }} />
                     Scadenze veicoli
                   </span>
                   <Select
@@ -163,6 +167,7 @@ export default function HomePage() {
               {expiringItems.length > 0 ? (
                 <List
                   size="small"
+                  pagination={LIST_PAGINATION}
                   dataSource={expiringItems}
                   renderItem={(item) => (
                     <List.Item>
@@ -228,6 +233,7 @@ export default function HomePage() {
               {dashboard.personalExpiries.length > 0 ? (
                 <List
                   size="small"
+                  pagination={LIST_PAGINATION}
                   dataSource={dashboard.personalExpiries}
                   renderItem={(item) => (
                     <List.Item>
@@ -256,6 +262,7 @@ export default function HomePage() {
               {dashboard.assignedVehicles.length > 0 ? (
                 <List
                   size="small"
+                  pagination={LIST_PAGINATION}
                   dataSource={dashboard.assignedVehicles}
                   renderItem={(item) => (
                     <List.Item>
@@ -277,13 +284,14 @@ export default function HomePage() {
               <Card
                 title={
                   <span>
-                    <WarningOutlined className="mr-2" style={{ color: '#faad14' }} />
+                    <WarningOutlined className="mr-2" style={{ color: token.colorWarning }} />
                     Scadenze veicoli assegnati
                   </span>
                 }
               >
                 <List
                   size="small"
+                  pagination={LIST_PAGINATION}
                   dataSource={vehicleExpiringItems}
                   renderItem={(item) => (
                     <List.Item>

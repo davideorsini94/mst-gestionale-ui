@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Tag, Space, message, Input, Tooltip } from 'antd';
+import { Table, Button, Tag, Space, Input, Tooltip, theme } from 'antd';
+import { message } from '../../services/notify';
 import { PlusOutlined, EyeOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/ApiService';
@@ -50,6 +51,7 @@ export default function StaffPage() {
     total: 0,
   });
   const navigate = useNavigate();
+  const { token } = theme.useToken();
 
   useEffect(() => {
     loadData(1, 10, search);
@@ -153,14 +155,14 @@ export default function StaffPage() {
         if (expired.length > 0) {
           return (
             <Tooltip title={expired.join('\n')}>
-              <WarningOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />
+              <WarningOutlined style={{ color: token.colorError, fontSize: 16 }} aria-label="Scadenze superate" />
             </Tooltip>
           );
         }
         if (expiring.length > 0) {
           return (
             <Tooltip title={expiring.join('\n')}>
-              <WarningOutlined style={{ color: '#faad14', fontSize: 16 }} />
+              <WarningOutlined style={{ color: token.colorWarning, fontSize: 16 }} aria-label="Scadenze imminenti" />
             </Tooltip>
           );
         }
@@ -205,6 +207,7 @@ export default function StaffPage() {
         <h1 className="text-2xl font-bold">Staff</h1>
         <Space>
           <Input.Search
+            enterButton={<Button icon={<SearchOutlined />} aria-label="Cerca" />}
             placeholder="Cerca..."
             prefix={<SearchOutlined />}
             value={search}

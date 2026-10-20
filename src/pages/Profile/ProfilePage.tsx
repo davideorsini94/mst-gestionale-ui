@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, message, Divider, Space, Grid } from 'antd';
-import { SaveOutlined, LockOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Button, Divider, Space, Grid, Segmented, Switch, Typography } from 'antd';
+import { message } from '../../services/notify';
+import { SaveOutlined, LockOutlined, BgColorsOutlined, SunOutlined, MoonOutlined, DesktopOutlined } from '@ant-design/icons';
 import { apiService } from '../../services/ApiService';
 import { authService } from '../../services/AuthService';
+import { useThemePrefs } from '../../theme/ThemeProvider';
+import type { ThemeMode } from '../../theme/preferences';
 
 const { useBreakpoint } = Grid;
 
@@ -24,6 +27,7 @@ export default function ProfilePage() {
     const [changingPassword, setChangingPassword] = useState(false);
 
     const currentUser = authService.getUser();
+    const { mode, setMode, reduceTransparency, setReduceTransparency } = useThemePrefs();
 
     useEffect(() => {
         loadProfile();
@@ -71,7 +75,6 @@ export default function ProfilePage() {
             message.error({
                 content: errorMessage,
                 duration: 5,
-                style: { backgroundColor: '#fff1f0', border: '1px solid #ffa39e' },
             });
             setChangingPassword(false);
         }
@@ -101,6 +104,46 @@ export default function ProfilePage() {
                         </Button>
                     </Form.Item>
                 </Form>
+            </Card>
+
+            <Divider style={{ margin: isMobile ? '16px 0' : '24px 0' }} />
+
+            <Card
+                title={<Space><BgColorsOutlined /> Aspetto</Space>}
+                bodyStyle={{ padding: isMobile ? 12 : 24 }}
+            >
+                <div className="flex flex-col gap-4">
+                    <div>
+                        <div id="theme-label" className="mb-2 font-medium">Tema</div>
+                        <Segmented<ThemeMode>
+                            aria-labelledby="theme-label"
+                            block
+                            value={mode}
+                            onChange={(value) => setMode(value)}
+                            options={[
+                                { label: 'Chiaro', value: 'light', icon: <SunOutlined /> },
+                                { label: 'Scuro', value: 'dark', icon: <MoonOutlined /> },
+                                { label: 'Automatico', value: 'system', icon: <DesktopOutlined /> },
+                            ]}
+                        />
+                        <Typography.Text type="secondary" className="block mt-2 text-sm">
+                            "Automatico" segue l'impostazione chiaro/scuro del dispositivo.
+                        </Typography.Text>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <label htmlFor="reduce-transparency" className="font-medium">Riduci trasparenza</label>
+                            <Typography.Text type="secondary" className="block text-sm">
+                                Sostituisce gli effetti vetro di barre e menu con superfici opache.
+                            </Typography.Text>
+                        </div>
+                        <Switch
+                            id="reduce-transparency"
+                            checked={reduceTransparency}
+                            onChange={setReduceTransparency}
+                        />
+                    </div>
+                </div>
             </Card>
 
             <Divider style={{ margin: isMobile ? '16px 0' : '24px 0' }} />

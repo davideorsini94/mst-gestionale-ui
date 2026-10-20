@@ -7,7 +7,6 @@ import {
   Select,
   DatePicker,
   Button,
-  message,
   Row,
   Col,
   Divider,
@@ -18,6 +17,7 @@ import {
   Popconfirm,
   Avatar,
 } from 'antd';
+import { message } from '../../services/notify';
 import {
   ArrowLeftOutlined,
   SaveOutlined,
@@ -119,10 +119,19 @@ export default function StaffDetailPage() {
   const [profileImageBlobUrl, setProfileImageBlobUrl] = useState<string | null>(null);
   const isNew = uuid === 'new';
   const canManageStaff = authService.hasCapability('CAN_MANAGE_STAFF');
+  // Senza CAN_MANAGE_STAFF si può modificare solo il proprio profilo (PUT /staff/me): salvare la scheda di un
+  // collega sovrascriverebbe il proprio profilo con i suoi dati
+  const [ownStaffUuid, setOwnStaffUuid] = useState<string | null>(null);
+  const canSave = canManageStaff || (!!ownStaffUuid && ownStaffUuid === uuid);
 
   useEffect(() => {
     if (canManageStaff) {
       loadUsers();
+    } else {
+      apiService
+        .get<{ uuid?: string }>('/staff/me')
+        .then((me) => setOwnStaffUuid(me?.uuid ?? null))
+        .catch(() => setOwnStaffUuid(null));
     }
     if (!isNew && uuid) {
       loadStaff();
@@ -216,8 +225,11 @@ export default function StaffDetailPage() {
         await apiService.post('/staff', payload);
         message.success('Membro staff creato');
       } else {
-        // Se l'utente non ha CAN_MANAGE_STAFF, usa l'endpoint /staff/me
-        const canManageStaff = authService.hasCapability('CAN_MANAGE_STAFF');
+        // Se l'utente non ha CAN_MANAGE_STAFF, usa l'endpoint /staff/me (solo sul proprio profilo)
+        if (!canSave) {
+          message.error('Puoi modificare solo il tuo profilo staff');
+          return;
+        }
         if (canManageStaff) {
           await apiService.put(`/staff/${uuid}`, payload);
         } else {
@@ -660,6 +672,7 @@ export default function StaffDetailPage() {
                 <List
                   size="small"
                   dataSource={documents}
+                  pagination={{ pageSize: 5, size: 'small', hideOnSinglePage: true, align: 'center' }}
                   locale={{ emptyText: 'Nessun documento' }}
                   renderItem={(doc) => (
                     <List.Item
@@ -669,13 +682,14 @@ export default function StaffDetailPage() {
                           size="small"
                           icon={<DownloadOutlined />}
                           onClick={() => handleDownloadDocument(doc)}
+                          aria-label="Scarica documento"
                         />,
                         <Popconfirm
                           key="delete"
                           title="Eliminare il documento?"
                           onConfirm={() => handleDeleteDocument(doc.uuid)}
                         >
-                          <Button size="small" danger icon={<DeleteOutlined />} />
+                          <Button size="small" danger icon={<DeleteOutlined />} aria-label="Elimina documento" />
                         </Popconfirm>,
                       ]}
                     >
@@ -697,6 +711,7 @@ export default function StaffDetailPage() {
             icon={<SaveOutlined />}
             htmlType="submit"
             loading={saving}
+            disabled={!isNew && !canSave}
           >
             Salva
           </Button>

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Card, Row, Col, DatePicker, Select, Statistic, Spin, Table, Grid } from 'antd';
+import { Card, Row, Col, DatePicker, Statistic, Spin, Table, Grid, theme } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { apiService } from '../../services/ApiService';
+import SearchableSelect from '../../components/SearchableSelect';
+import { formatEuro, italianStatisticProps } from '../../helpers/format';
 
 const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
@@ -11,40 +13,34 @@ interface Statistics {
   totalIncome: number;
   totalExpense: number;
   balance: number;
-  byCategory: { categoryName: string; total: number; type: string }[];
+  byCategory: CategoryRow[];
   byMonth: { month: string; income: number; expense: number }[];
 }
 
-interface Category {
-  uuid: string;
-  name: string;
+/** Una riga per categoria E tipo (entrate e uscite separate). */
+interface CategoryRow {
+  categoryUuid: string | null;
+  categoryName: string;
+  type: 'INCOME' | 'EXPENSE';
+  total: number;
 }
+
+const money = (v: number | string | null | undefined) => formatEuro(Number(v ?? 0));
 
 export default function StatisticsPage() {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Statistics | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { token } = theme.useToken();
+  const incomeColor = token.colorSuccessText;
+  const expenseColor = token.colorErrorText;
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
 
   useEffect(() => {
-    loadCategories();
-  }, []);
-
-  useEffect(() => {
     loadStats();
   }, [dateRange, selectedCategory]);
-
-  const loadCategories = async () => {
-    try {
-      const data = await apiService.get<[Category[], number]>('/categories');
-      setCategories(data[0]);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-    }
-  };
 
   const loadStats = async () => {
     setLoading(true);
@@ -54,7 +50,7 @@ export default function StatisticsPage() {
         url += `startDate=${dateRange[0].format('YYYY-MM-DD')}&endDate=${dateRange[1].format('YYYY-MM-DD')}&`;
       }
       if (selectedCategory) {
-        url += `categoryUuid=${selectedCategory}`;
+        url += `categoryUuid=${encodeURIComponent(selectedCategory)}`;
       }
       const data = await apiService.get<Statistics>(url);
       setStats(data);
@@ -71,22 +67,22 @@ export default function StatisticsPage() {
       title: 'Entrate',
       dataIndex: 'income',
       key: 'income',
-      render: (v: number) => <span style={{ color: '#52c41a' }}>€{v.toFixed(2)}</span>,
+      render: (v: number) => <span style={{ color: incomeColor }}>{money(v)}</span>,
     },
     {
       title: 'Uscite',
       dataIndex: 'expense',
       key: 'expense',
-      render: (v: number) => <span style={{ color: '#ff4d4f' }}>€{v.toFixed(2)}</span>,
+      render: (v: number) => <span style={{ color: expenseColor }}>{money(v)}</span>,
     },
     {
       title: 'Bilancio',
       key: 'balance',
       render: (_: unknown, record: { income: number; expense: number }) => {
-        const balance = record.income - record.expense;
+        const balance = Number(record.income) - Number(record.expense);
         return (
-          <span style={{ color: balance >= 0 ? '#52c41a' : '#ff4d4f' }}>
-            €{balance.toFixed(2)}
+          <span style={{ color: balance >= 0 ? incomeColor : expenseColor }}>
+            {money(balance)}
           </span>
         );
       },
@@ -99,9 +95,9 @@ export default function StatisticsPage() {
       title: 'Totale',
       dataIndex: 'total',
       key: 'total',
-      render: (v: number, record: { type: string }) => (
-        <span style={{ color: record.type === 'INCOME' ? '#52c41a' : '#ff4d4f' }}>
-          €{v.toFixed(2)}
+      render: (v: number, record: CategoryRow) => (
+        <span style={{ color: record.type === 'INCOME' ? incomeColor : expenseColor }}>
+          {money(v)}
         </span>
       ),
     },
@@ -139,19 +135,14 @@ export default function StatisticsPage() {
           </div>
           <div className={isMobile ? 'w-full' : ''}>
             <label className="block mb-1 text-sm">Categoria</label>
-            <Select
-              style={{ width: isMobile ? '100%' : 200 }}
-              allowClear
+            {/* select paginata e ricercabile (stesso endpoint di CategorySelect) */}
+            <SearchableSelect
+              endpoint="/categories/search"
+              style={{ width: isMobile ? '100%' : 240 }}
               placeholder="Tutte le categorie"
               value={selectedCategory}
-              onChange={setSelectedCategory}
-            >
-              {categories.map((cat) => (
-                <Select.Option key={cat.uuid} value={cat.uuid}>
-                  {cat.name}
-                </Select.Option>
-              ))}
-            </Select>
+              onChange={(value) => setSelectedCategory(value)}
+            />
           </div>
         </div>
       </Card>
@@ -160,35 +151,38 @@ export default function StatisticsPage() {
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
+              {...italianStatisticProps}
               title="Totale Entrate"
               value={stats?.totalIncome || 0}
               precision={2}
               prefix={<ArrowUpOutlined />}
               suffix="€"
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: incomeColor }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
+              {...italianStatisticProps}
               title="Totale Uscite"
               value={stats?.totalExpense || 0}
               precision={2}
               prefix={<ArrowDownOutlined />}
               suffix="€"
-              valueStyle={{ color: '#ff4d4f' }}
+              valueStyle={{ color: expenseColor }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
+              {...italianStatisticProps}
               title="Bilancio"
               value={stats?.balance || 0}
               precision={2}
               suffix="€"
-              valueStyle={{ color: (stats?.balance || 0) >= 0 ? '#52c41a' : '#ff4d4f' }}
+              valueStyle={{ color: Number(stats?.balance || 0) >= 0 ? incomeColor : expenseColor }}
             />
           </Card>
         </Col>
@@ -201,7 +195,7 @@ export default function StatisticsPage() {
               columns={monthColumns}
               dataSource={stats?.byMonth || []}
               rowKey="month"
-              pagination={false}
+              pagination={{ pageSize: 12, size: 'small', hideOnSinglePage: true, showSizeChanger: false }}
               size="small"
               scroll={isMobile ? { x: 400 } : undefined}
             />
@@ -212,8 +206,8 @@ export default function StatisticsPage() {
             <Table
               columns={categoryColumns}
               dataSource={stats?.byCategory || []}
-              rowKey="categoryName"
-              pagination={false}
+              rowKey={(record: CategoryRow) => `${record.categoryUuid ?? 'none'}-${record.type}`}
+              pagination={{ pageSize: 10, size: 'small', hideOnSinglePage: true, showSizeChanger: false }}
               size="small"
               scroll={isMobile ? { x: 300 } : undefined}
             />
