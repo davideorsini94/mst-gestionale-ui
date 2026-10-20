@@ -1,7 +1,10 @@
+import '@ant-design/v5-patch-for-react-19';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
+import { ThemeProvider } from './theme/ThemeProvider';
+import { registerServiceWorker } from './services/appUpdate';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -16,21 +19,12 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </QueryClientProvider>
   </React.StrictMode>
 );
 
-// Registra il service worker per PWA
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .then((registration) => {
-        console.log('Service Worker registrato con successo:', registration.scope);
-      })
-      .catch((error) => {
-        console.log('Registrazione Service Worker fallita:', error);
-      });
-  });
-}
+// Service worker PWA: cache solo /assets/*, update on focus, reload singolo su nuovo SW
+registerServiceWorker();

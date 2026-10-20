@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, Select, DatePicker, InputNumber, message, Space, Tag, Popconfirm, Tooltip, Upload, Alert, Grid } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, FilePdfOutlined, UploadOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Input, Select, DatePicker, InputNumber, Space, Tag, Popconfirm, Tooltip, Upload, Alert, Grid, Typography, theme } from 'antd';
+import { message } from '../../services/notify';
+import { PlusOutlined, EditOutlined, DeleteOutlined, FilePdfOutlined, UploadOutlined, ToolOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { apiService, getApiBaseUrl } from '../../services/ApiService';
 import { authService } from '../../services/AuthService';
 import CategorySelect from '../../components/CategorySelect';
+import { formatEuro } from '../../helpers/format';
 
 const { useBreakpoint } = Grid;
 
@@ -37,6 +40,11 @@ interface PaginationState {
 export default function TransactionsPage() {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+  const { token } = theme.useToken();
+  const navigate = useNavigate();
+  const canManageTransactions = authService.hasCapability('CAN_MANAGE_TRANSACTIONS');
+  const incomeColor = token.colorSuccessText;
+  const expenseColor = token.colorErrorText;
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,7 +60,7 @@ export default function TransactionsPage() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ imported: number; updated: number; errors: { row: number; error: string }[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; updated: number; corrected?: number; errors: { row: number; error: string }[] } | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Filtri
@@ -247,7 +255,7 @@ export default function TransactionsPage() {
       const formData = new FormData();
       formData.append('file', importFile);
 
-      const result = await apiService.post<{ imported: number; updated: number; errors: { row: number; error: string }[] }>(
+      const result = await apiService.post<{ imported: number; updated: number; corrected?: number; errors: { row: number; error: string }[] }>(
         '/transactions/import-excel',
         formData
       );
@@ -255,7 +263,7 @@ export default function TransactionsPage() {
       setImportResult(result);
 
       if (result.errors.length === 0) {
-        message.success(`Import completato: ${result.imported} nuove, ${result.updated} aggiornate`);
+        message.success(`Import completato: ${result.imported} nuove, ${result.updated} aggiornate${result.corrected ? `, ${result.corrected} importi corretti` : ''}`);
       } else {
         message.warning(`Import completato con errori: ${result.imported} nuove, ${result.updated} aggiornate, ${result.errors.length} errori`);
       }
@@ -287,9 +295,9 @@ export default function TransactionsPage() {
       fixed: 'left' as const,
       render: (_: unknown, record: Transaction) => (
         <Space>
-          <Button icon={<EditOutlined />} onClick={() => openModal(record)} size="small" />
+          <Button icon={<EditOutlined />} onClick={() => openModal(record)} size="small" aria-label="Modifica movimento" />
           <Popconfirm title="Eliminare?" onConfirm={() => handleDelete(record.uuid)}>
-            <Button icon={<DeleteOutlined />} danger size="small" />
+            <Button icon={<DeleteOutlined />} danger size="small" aria-label="Elimina movimento" />
           </Popconfirm>
         </Space>
       ),
@@ -304,8 +312,9 @@ export default function TransactionsPage() {
           <Tooltip title={`Ricevuta N° ${record.receiptNumber}/${record.receiptYear}`}>
             <Button
               type="link"
-              icon={<FilePdfOutlined style={{ fontSize: 18, color: '#ff4d4f' }} />}
+              icon={<FilePdfOutlined style={{ fontSize: 18, color: token.colorError }} />}
               onClick={() => handleViewReceipt(record.uuid)}
+              aria-label={`Apri ricevuta N° ${record.receiptNumber}/${record.receiptYear}`}
             />
           </Tooltip>
         ) : null
@@ -324,7 +333,7 @@ export default function TransactionsPage() {
       width: 100,
       render: (_: unknown, record: Transaction) => (
         record.type === 'EXPENSE' ? (
-          <span style={{ color: '#ff4d4f' }}>€{Number(record.amount).toFixed(2)}</span>
+          <span style={{ color: expenseColor }}>{formatEuro(record.amount)}</span>
         ) : '-'
       ),
     },
@@ -334,7 +343,7 @@ export default function TransactionsPage() {
       width: 100,
       render: (_: unknown, record: Transaction) => (
         record.type === 'INCOME' ? (
-          <span style={{ color: '#52c41a' }}>€{Number(record.amount).toFixed(2)}</span>
+          <span style={{ color: incomeColor }}>{formatEuro(record.amount)}</span>
         ) : '-'
       ),
     },
@@ -367,8 +376,8 @@ export default function TransactionsPage() {
       width: 100,
       render: (amount: number | undefined, record: Transaction) => (
         amount ? (
-          <span style={{ color: record.type === 'INCOME' ? '#52c41a' : '#ff4d4f' }}>
-            €{Number(amount).toFixed(2)}
+          <span style={{ color: record.type === 'INCOME' ? incomeColor : expenseColor }}>
+            {formatEuro(amount)}
           </span>
         ) : '-'
       ),
@@ -401,6 +410,11 @@ export default function TransactionsPage() {
       <div className={`flex ${isMobile ? 'flex-col gap-3' : 'justify-between items-center'} mb-4`}>
         <h1 className="text-xl md:text-2xl font-bold">Movimenti Finanziari</h1>
         <Space size={isMobile ? 'small' : 'middle'} wrap>
+          {canManageTransactions && (
+            <Button icon={<ToolOutlined />} onClick={() => navigate('/transactions/maintenance')}>
+              {isMobile ? 'Manutenzione' : 'Manutenzione dati'}
+            </Button>
+          )}
           {!isMobile && (
             <Button icon={<UploadOutlined />} onClick={() => setImportModalOpen(true)}>
               Importa Excel
@@ -563,10 +577,10 @@ export default function TransactionsPage() {
           </div>
           <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
             <Form.Item name="amount" label="Importo" rules={[{ required: true }]}>
-              <InputNumber min={0} precision={2} suffix="€" className="w-full" />
+              <InputNumber min={0} precision={2} decimalSeparator="," suffix="€" className="w-full" />
             </Form.Item>
             <Form.Item name="originalAmount" label="Importo Originale">
-              <InputNumber min={0} precision={2} suffix="€" className="w-full" />
+              <InputNumber min={0} precision={2} decimalSeparator="," suffix="€" className="w-full" />
             </Form.Item>
           </div>
           <Form.Item name="subject" label="Ditta-Ente-Soggetto">
@@ -637,7 +651,7 @@ export default function TransactionsPage() {
           </ul>
           <Alert
             message="Attenzione"
-            description="Le transazioni esistenti con stessa data, importo, tipo e soggetto verranno sovrascritte."
+            description="Le transazioni esistenti con stessa data, importo, tipo e soggetto verranno aggiornate. Le righe già importate in passato con l'importo sbagliato (migliaia lette come pochi euro) vengono riconosciute e corrette, senza creare duplicati."
             type="warning"
             showIcon
             className="mb-4"
@@ -651,7 +665,7 @@ export default function TransactionsPage() {
           disabled={importing}
         >
           <p className="ant-upload-drag-icon">
-            <UploadOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+            <UploadOutlined style={{ fontSize: 48, color: token.colorPrimary }} />
           </p>
           <p className="ant-upload-text">
             {importFile ? importFile.name : 'Clicca o trascina il file qui'}
@@ -669,14 +683,28 @@ export default function TransactionsPage() {
                 <div>
                   <p>Transazioni importate: <strong>{importResult.imported}</strong></p>
                   <p>Transazioni aggiornate: <strong>{importResult.updated}</strong></p>
+                  {!!importResult.corrected && (
+                    <p>
+                      Importi corretti (erano stati salvati male da un import precedente):{' '}
+                      <strong>{importResult.corrected}</strong>
+                    </p>
+                  )}
                   {importResult.errors.length > 0 && (
                     <div className="mt-2">
-                      <p className="text-red-500">Errori ({importResult.errors.length}):</p>
-                      <ul className="list-disc list-inside text-sm max-h-32 overflow-y-auto">
-                        {importResult.errors.map((err, idx) => (
-                          <li key={idx}>Riga {err.row}: {err.error}</li>
-                        ))}
-                      </ul>
+                      <Typography.Text type="danger" strong>
+                        Errori ({importResult.errors.length}):
+                      </Typography.Text>
+                      <Table
+                        className="mt-2"
+                        size="small"
+                        dataSource={importResult.errors.map((err, idx) => ({ ...err, key: idx }))}
+                        columns={[
+                          { title: 'Riga', dataIndex: 'row', key: 'row', width: 70 },
+                          { title: 'Errore', dataIndex: 'error', key: 'error' },
+                        ]}
+                        pagination={{ pageSize: 10, size: 'small', hideOnSinglePage: true, showSizeChanger: false }}
+                        scroll={{ x: 'max-content' }}
+                      />
                     </div>
                   )}
                 </div>

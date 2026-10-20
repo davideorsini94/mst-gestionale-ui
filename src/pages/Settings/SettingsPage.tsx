@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Button, message, Divider, List, InputNumber, Tabs, Switch, Alert, Upload, Table, Popconfirm, Space, Tag, Grid, Result } from 'antd';
+import { Card, Form, Input, Button, Divider, List, InputNumber, Tabs, Switch, Alert, Upload, Table, Popconfirm, Space, Tag, Grid, Result } from 'antd';
+import { message } from '../../services/notify';
 import { SaveOutlined, MailOutlined, SettingOutlined, DatabaseOutlined, CloudDownloadOutlined, DeleteOutlined, UploadOutlined, CloudServerOutlined, LockOutlined } from '@ant-design/icons';
 import { apiService, getApiBaseUrl } from '@services/ApiService.ts';
 import { authService } from '../../services/AuthService';
@@ -19,6 +20,8 @@ interface SmtpConfig {
   user: string;
   pass: string;
   from: string;
+  /** Il server non restituisce mai la password: indica solo se ne è salvata una */
+  hasPassword?: boolean;
 }
 
 export default function SettingsPage() {
@@ -27,6 +30,7 @@ export default function SettingsPage() {
   const isMobile = !screens.md;
   const [settings, setSettings] = useState<Setting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [smtpHasPassword, setSmtpHasPassword] = useState(false);
   const [form] = Form.useForm();
   const [smtpForm] = Form.useForm();
   const [savingSmtp, setSavingSmtp] = useState(false);
@@ -66,7 +70,9 @@ export default function SettingsPage() {
       // Carica configurazione SMTP
       const smtpSetting = data.find(s => s.key === 'smtpConfig');
       if (smtpSetting?.value) {
-        smtpForm.setFieldsValue(smtpSetting.value as SmtpConfig);
+        const { hasPassword, ...smtpValues } = smtpSetting.value as SmtpConfig;
+        setSmtpHasPassword(!!hasPassword);
+        smtpForm.setFieldsValue({ ...smtpValues, pass: '' });
       }
 
       // Carica email admin
@@ -114,6 +120,8 @@ export default function SettingsPage() {
         value: values,
         description: 'Configurazione SMTP per invio email',
       });
+      if (values.pass) setSmtpHasPassword(true);
+      smtpForm.setFieldValue('pass', '');
       message.success('Configurazione SMTP salvata');
     } catch (error) {
       message.error('Errore nel salvataggio');
@@ -261,8 +269,16 @@ export default function SettingsPage() {
                 <Form.Item name="user" label="Username" rules={[{ required: true }]}>
                   <Input placeholder="es. noreply@example.com" />
                 </Form.Item>
-                <Form.Item name="pass" label="Password" rules={[{ required: true }]}>
-                  <Input.Password placeholder="Password SMTP" />
+                <Form.Item
+                  name="pass"
+                  label="Password"
+                  rules={[{ required: !smtpHasPassword, message: 'Inserisci la password SMTP' }]}
+                  extra={smtpHasPassword ? 'Password salvata (cifrata). Lascia vuoto per non modificarla.' : undefined}
+                >
+                  <Input.Password
+                    placeholder={smtpHasPassword ? '••••••••' : 'Password SMTP'}
+                    autoComplete="new-password"
+                  />
                 </Form.Item>
               </div>
               <Form.Item name="from" label="Indirizzo Mittente">
@@ -334,10 +350,11 @@ export default function SettingsPage() {
             <List
               dataSource={filteredSettings}
               locale={{ emptyText: 'Nessuna impostazione' }}
+              pagination={{ pageSize: 10, size: 'small', hideOnSinglePage: true, align: 'center' }}
               renderItem={(item) => (
                 <List.Item
                   actions={[
-                    <Button danger onClick={() => handleDelete(item.key)}>
+                    <Button key="delete" danger onClick={() => handleDelete(item.key)}>
                       Elimina
                     </Button>,
                   ]}
@@ -416,6 +433,8 @@ export default function SettingsPage() {
               dataSource={backups}
               loading={loadingBackups}
               rowKey="filename"
+              scroll={{ x: 640 }}
+              pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
               columns={[
                 {
                   title: 'Nome File',

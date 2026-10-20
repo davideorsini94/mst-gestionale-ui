@@ -3,15 +3,52 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <title>MST Gestionale - Sci Club</title>
+
+  <!-- CSS variables del tema (generate da src/theme/palette.ts dal plugin in vite.config.ts) -->
+  <!--mst-theme-vars-->
+
+  <!-- Theme Color (aggiornato dallo script qui sotto e dal ThemeProvider) -->
+  <meta name="theme-color" content="#EAF1FA" />
+
+  <!--
+    Script BLOCCANTE anti-flash: legge le preferenze (mst_prefs) e imposta
+    data-theme / data-reduce-transparency / color-scheme prima del bundle.
+    Tenere allineato con src/theme/preferences.ts.
+  -->
+  <script>
+    (function () {
+      var mode = 'system';
+      var reduce = false;
+      try {
+        var raw = window.localStorage.getItem('mst_prefs');
+        var p = raw ? JSON.parse(raw) : null;
+        if (p && (p.theme === 'light' || p.theme === 'dark' || p.theme === 'system')) mode = p.theme;
+        reduce = !!(p && p.reduceTransparency === true);
+      } catch (e) { /* storage non disponibile */ }
+      var theme = mode;
+      if (theme === 'system') {
+        try {
+          theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        } catch (e) { theme = 'light'; }
+      }
+      var root = document.documentElement;
+      root.setAttribute('data-theme', theme);
+      root.setAttribute('data-reduce-transparency', reduce ? 'true' : 'false');
+      root.style.colorScheme = theme;
+      try {
+        var color = getComputedStyle(root).getPropertyValue('--mst-theme-color').trim();
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (color && meta) meta.setAttribute('content', color);
+      } catch (e) { /* ignora */ }
+    })();
+  </script>
 
   <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json" />
-
-  <!-- Theme Color -->
-  <meta name="theme-color" content="#1e40af" />
 
   <!-- iOS Meta Tags -->
   <meta name="apple-mobile-web-app-capable" content="yes" />

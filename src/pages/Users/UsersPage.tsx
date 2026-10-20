@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, Select, message, Space, Popconfirm, Tag, Switch, Divider, Alert, Grid } from 'antd';
+import { Table, Button, Modal, Form, Input, Select, Space, Popconfirm, Tag, Switch, Divider, Alert, Grid } from 'antd';
+import { message } from '../../services/notify';
 import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined } from '@ant-design/icons';
 import { apiService } from '../../services/ApiService';
 import { authService } from '../../services/AuthService';
@@ -28,6 +29,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form] = Form.useForm();
@@ -39,23 +41,43 @@ export default function UsersPage() {
   const canViewUsers = authService.hasCapability('CAN_VIEW_USERS');
 
   useEffect(() => {
-    loadData();
+    loadUsers(1, 10);
+    loadRoles();
   }, []);
 
-  const loadData = async () => {
+  // Paginazione lato server: GET /users?filters={"page":..,"pageSize":..} → [User[], total]
+  const loadUsers = async (page: number, pageSize: number) => {
+    setLoading(true);
     try {
-      const [usersRes, rolesRes] = await Promise.all([
-        apiService.get<[User[], number]>('/users'),
-        apiService.get<Role[]>('/roles'),
-      ]);
-      setUsers(usersRes[0]);
-      setRoles(rolesRes);
+      const filters = { page, pageSize };
+      const [data, total] = await apiService.get<[User[], number]>(
+        `/users?filters=${encodeURIComponent(JSON.stringify(filters))}`
+      );
+      // se la pagina corrente si è svuotata (es. dopo una cancellazione) torna indietro
+      if (data.length === 0 && total > 0 && page > 1) {
+        loadUsers(Math.max(1, Math.ceil(total / pageSize)), pageSize);
+        return;
+      }
+      setUsers(data);
+      setPagination({ current: page, pageSize, total });
     } catch (error) {
       message.error('Errore nel caricamento dati');
     } finally {
       setLoading(false);
     }
   };
+
+  // Ruoli per il selettore (lista completa, invariato)
+  const loadRoles = async () => {
+    try {
+      const rolesRes = await apiService.get<Role[]>('/roles');
+      setRoles(rolesRes);
+    } catch (error) {
+      message.error('Errore nel caricamento dati');
+    }
+  };
+
+  const loadData = () => loadUsers(pagination.current, pagination.pageSize);
 
   const handleSave = async (values: Partial<User> & { password?: string }) => {
     try {
@@ -156,14 +178,14 @@ export default function UsersPage() {
         return (
           <Space size="small">
             {canEdit && (
-              <Button size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => openModal(record)} title="Modifica" />
+              <Button size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => openModal(record)} title="Modifica" aria-label="Modifica utente" />
             )}
             {canChangePassword && (
-              <Button size={isMobile ? 'small' : 'middle'} icon={<LockOutlined />} onClick={() => openPasswordModal(record)} title="Cambia Password" />
+              <Button size={isMobile ? 'small' : 'middle'} icon={<LockOutlined />} onClick={() => openPasswordModal(record)} title="Cambia Password" aria-label="Cambia password" />
             )}
             {canDelete && (
               <Popconfirm title="Eliminare questo utente?" onConfirm={() => handleDelete(record.uuid)}>
-                <Button size={isMobile ? 'small' : 'middle'} icon={<DeleteOutlined />} danger title="Elimina" />
+                <Button size={isMobile ? 'small' : 'middle'} icon={<DeleteOutlined />} danger title="Elimina" aria-label="Elimina utente" />
               </Popconfirm>
             )}
           </Space>
@@ -190,6 +212,16 @@ export default function UsersPage() {
         loading={loading}
         scroll={{ x: isMobile ? 400 : undefined }}
         size={isMobile ? 'small' : 'middle'}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: !isMobile,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          showTotal: isMobile ? undefined : (total, range) => `${range[0]}-${range[1]} di ${total}`,
+          simple: isMobile,
+        }}
+        onChange={(pag) => loadUsers(pag.current || 1, pag.pageSize || pagination.pageSize)}
       />
 
       <Modal

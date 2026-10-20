@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AutoComplete, Spin, Divider, Button } from 'antd';
+import { AutoComplete, Spin, Divider, Button, theme } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import debounce from 'lodash/debounce';
 import { apiService } from '../services/ApiService';
@@ -46,6 +46,7 @@ export default function CategorySelect({
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const fetchRef = useRef(0);
+  const { token } = theme.useToken();
 
   const fetchOptions = useCallback(
     async (search: string, pageNum: number) => {
@@ -174,15 +175,17 @@ export default function CategorySelect({
           >
             <Button
               size="small"
+              aria-label="Pagina precedente"
               icon={<LeftOutlined />}
               disabled={page <= 1}
               onClick={handlePrevPage}
             />
-            <span style={{ fontSize: 12, color: '#888' }}>
+            <span style={{ fontSize: 12, color: token.colorTextTertiary }}>
               {page} / {totalPages} ({total})
             </span>
             <Button
               size="small"
+              aria-label="Pagina successiva"
               icon={<RightOutlined />}
               disabled={page >= totalPages}
               onClick={handleNextPage}
@@ -193,7 +196,7 @@ export default function CategorySelect({
       {searchText && !options.some((opt) => opt.value.toLowerCase() === searchText.toLowerCase()) && (
         <>
           <Divider style={{ margin: '4px 0' }} />
-          <div style={{ padding: '4px 12px', color: '#52c41a', fontSize: 12 }}>
+          <div style={{ padding: '4px 12px', color: token.colorSuccessText, fontSize: 12 }}>
             Premi Invio per creare "{searchText}"
           </div>
         </>

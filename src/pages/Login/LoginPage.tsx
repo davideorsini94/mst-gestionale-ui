@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Form, Input, Button, Card, message, Alert } from 'antd';
+import { Form, Input, Button, Card, Alert } from 'antd';
+import { message } from '../../services/notify';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { authService } from '../../services/AuthService';
 
@@ -24,20 +25,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center bg-gray-100"
-      style={{
-        padding: '16px',
-        paddingTop: 'max(16px, env(safe-area-inset-top))',
-        paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
-        minHeight: '100dvh',
-      }}
-    >
-      <Card
-        title="MST Gestionale - Login"
-        className="w-full max-w-sm"
-        styles={{ header: { textAlign: 'center' } }}
-      >
+    <main className="mst-login">
+      <Card className="mst-login-card" styles={{ body: { padding: 28 } }}>
+        <div className="mst-login-brand">
+          <span className="mst-brand-mark" aria-hidden="true">MST</span>
+          <h1 className="mst-login-title">MST Gestionale</h1>
+          <p className="mst-login-subtitle">Accedi per continuare</p>
+        </div>
         {error && (
           <Alert
             message={error}
@@ -80,6 +74,6 @@ export default function LoginPage() {
           </Form.Item>
         </Form>
       </Card>
-    </div>
+    </main>
   );
 }

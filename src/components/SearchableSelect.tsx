@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Select, Spin, Divider, Button } from 'antd';
+import { Select, Spin, Divider, Button, theme } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import debounce from 'lodash/debounce';
 import { apiService } from '../services/ApiService';
@@ -59,6 +59,7 @@ export default function SearchableSelect({
   const [total, setTotal] = useState(0);
   const [selectedOption, setSelectedOption] = useState<Option | null>(null);
   const fetchRef = useRef(0);
+  const { token } = theme.useToken();
 
   const fetchOptions = useCallback(
     async (search: string, pageNum: number) => {
@@ -181,15 +182,17 @@ export default function SearchableSelect({
           >
             <Button
               size="small"
+              aria-label="Pagina precedente"
               icon={<LeftOutlined />}
               disabled={page <= 1}
               onClick={handlePrevPage}
             />
-            <span style={{ fontSize: 12, color: '#888' }}>
+            <span style={{ fontSize: 12, color: token.colorTextTertiary }}>
               {page} / {totalPages} ({total} totali)
             </span>
             <Button
               size="small"
+              aria-label="Pagina successiva"
               icon={<RightOutlined />}
               disabled={page >= totalPages}
               onClick={handleNextPage}

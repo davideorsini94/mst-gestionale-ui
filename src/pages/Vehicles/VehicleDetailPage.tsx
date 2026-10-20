@@ -8,11 +8,11 @@ import {
   DatePicker,
   InputNumber,
   Button,
-  message,
   Row,
   Col,
   Spin,
 } from 'antd';
+import { message } from '../../services/notify';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { apiService } from '../../services/ApiService';

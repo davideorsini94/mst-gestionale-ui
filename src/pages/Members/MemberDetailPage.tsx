@@ -7,7 +7,6 @@ import {
   Select,
   DatePicker,
   Button,
-  message,
   Row,
   Col,
   Divider,
@@ -18,6 +17,7 @@ import {
   Popconfirm,
   Avatar,
 } from 'antd';
+import { message } from '../../services/notify';
 import {
   ArrowLeftOutlined,
   SaveOutlined,
@@ -575,6 +575,7 @@ export default function MemberDetailPage() {
                 <List
                   size="small"
                   dataSource={documents}
+                  pagination={{ pageSize: 5, size: 'small', hideOnSinglePage: true, align: 'center' }}
                   locale={{ emptyText: 'Nessun documento' }}
                   renderItem={(doc) => (
                     <List.Item
@@ -584,13 +585,14 @@ export default function MemberDetailPage() {
                           size="small"
                           icon={<DownloadOutlined />}
                           onClick={() => handleDownloadDocument(doc)}
+                          aria-label="Scarica documento"
                         />,
                         <Popconfirm
                           key="delete"
                           title="Eliminare il documento?"
                           onConfirm={() => handleDeleteDocument(doc.uuid)}
                         >
-                          <Button size="small" danger icon={<DeleteOutlined />} />
+                          <Button size="small" danger icon={<DeleteOutlined />} aria-label="Elimina documento" />
                         </Popconfirm>,
                       ]}
                     >

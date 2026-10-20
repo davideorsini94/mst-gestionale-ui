@@ -6,10 +6,10 @@ import {
   Modal,
   Form,
   Input,
-  message,
   Space,
   Popconfirm,
 } from 'antd';
+import { message } from '../../services/notify';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { apiService } from '../../services/ApiService';
 
@@ -111,7 +111,7 @@ export default function RolesPage() {
             Dettagli
           </Button>
           <Popconfirm title="Eliminare?" onConfirm={() => handleDelete(record.code)}>
-            <Button icon={<DeleteOutlined />} danger title="Elimina" />
+            <Button icon={<DeleteOutlined />} danger title="Elimina" aria-label="Elimina ruolo" />
           </Popconfirm>
         </Space>
       ),
@@ -127,7 +127,14 @@ export default function RolesPage() {
         </Button>
       </div>
 
-      <Table columns={columns} dataSource={roles} rowKey="code" loading={loading} />
+      <Table
+        columns={columns}
+        dataSource={roles}
+        rowKey="code"
+        loading={loading}
+        scroll={{ x: 600 }}
+        pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
+      />
 
       <Modal
         title={editingRole ? 'Modifica Ruolo' : 'Nuovo Ruolo'}

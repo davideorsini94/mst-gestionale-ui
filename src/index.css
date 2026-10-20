@@ -2,9 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Le variabili --mst-* (colori per tema chiaro/scuro) sono generate da
+ * src/theme/palette.ts → src/theme/cssVars.ts e iniettate in index.html
+ * (<style id="mst-theme-vars">) prima del primo paint.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+
+  /* Materiale vetro (variante "regular": blur + saturazione + luminosità) */
+  --mst-glass-blur: 20px;
+  --mst-glass-filter: blur(var(--mst-glass-blur)) saturate(180%) brightness(var(--mst-glass-luminosity, 1));
+  --mst-glass-fill: var(--mst-glass-bg);
+  --mst-glass-fill-strong: var(--mst-glass-bg-strong);
+  --mst-glass-edge: var(--mst-glass-border);
+  --mst-container-fill: var(--mst-container);
+
+  /* Raggi concentrici: contenitore 24 → card 16 → controlli 10 */
+  --mst-radius-container: 24px;
+  --mst-radius-card: 16px;
+  --mst-radius-control: 10px;
+
+  --mst-press-scale: 0.96;
+  --mst-hover-scale: 1.04;
+}
+
+html {
+  /* colore pieno per overscroll / safe area; la sfumatura è su body::before */
+  background-color: var(--mst-bg-base);
+  color: var(--mst-text);
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: transparent;
+  color: var(--mst-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -13,25 +57,24 @@ body {
   overscroll-behavior: none;
 }
 
+/* Sfondo ghiaccio sfumato (fisso: position:fixed funziona anche su iOS) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--mst-bg-from) 0%, var(--mst-bg-to) 100%);
+}
+
 #root {
   min-height: 100vh;
   min-height: 100dvh;
 }
 
-/* PWA safe area support for notched devices (iPhone X+) */
-:root {
-  --sat: env(safe-area-inset-top, 0px);
-  --sar: env(safe-area-inset-right, 0px);
-  --sab: env(safe-area-inset-bottom, 0px);
-  --sal: env(safe-area-inset-left, 0px);
-}
-
-html,
-body {
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-right: env(safe-area-inset-right, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  padding-left: env(safe-area-inset-left, 0px);
+.mst-app {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 @supports (padding: env(safe-area-inset-top)) {
@@ -41,6 +84,529 @@ body {
 
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Focus visibile ovunque (tastiera) */
+:where(a, button, [role='button'], [role='menuitem'], [tabindex], input, select, textarea, .ant-menu-item, .ant-segmented-item):focus-visible {
+  outline: 2px solid var(--mst-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Materiale VETRO — solo strato di navigazione/controlli flottanti   */
+/* (sidebar, barra superiore, drawer mobile, menu/tooltip/popover)     */
+/* Mai sui contenuti, mai vetro su vetro, mai sulle maschere.          */
+/* ------------------------------------------------------------------ */
+
+.glass,
+.glass-strong,
+.mst-shell .mst-sider.ant-layout-sider,
+.mst-toolbar,
+.mst-nav-drawer .ant-drawer-content,
+.ant-dropdown > .ant-dropdown-menu,
+.ant-dropdown-menu-submenu-popup > .ant-dropdown-menu,
+.ant-tooltip .ant-tooltip-inner,
+.ant-popover .ant-popover-inner {
+  background-color: var(--mst-glass-fill);
+  -webkit-backdrop-filter: var(--mst-glass-filter);
+  backdrop-filter: var(--mst-glass-filter);
+  border: 1px solid var(--mst-glass-edge);
+  box-shadow: inset 0 1px 0 0 var(--mst-glass-highlight), var(--mst-glass-shadow);
+  color: var(--mst-text);
+}
+
+/* variante più coprente: elementi piccoli con testo sopra contenuti vari */
+.glass-strong,
+.mst-nav-drawer .ant-drawer-content,
+.ant-dropdown > .ant-dropdown-menu,
+.ant-dropdown-menu-submenu-popup > .ant-dropdown-menu,
+.ant-tooltip .ant-tooltip-inner,
+.ant-popover .ant-popover-inner {
+  background-color: var(--mst-glass-fill-strong);
+}
+
+/* Popup che devono restare solidi (es. dentro un modale): aggiungere questa classe */
+.mst-solid-popup .ant-popover-inner,
+.mst-solid-popup .ant-tooltip-inner,
+.mst-solid-popup > .ant-dropdown-menu {
+  background-color: var(--mst-elevated);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.ant-tooltip {
+  --antd-arrow-background-color: var(--mst-glass-opaque);
+}
+
+.ant-tooltip .ant-tooltip-inner {
+  border-radius: var(--mst-radius-control);
+}
+
+.ant-popover {
+  --antd-arrow-background-color: var(--mst-glass-opaque);
+}
+
+.ant-popover .ant-popover-inner {
+  border-radius: var(--mst-radius-card);
+}
+
+.ant-dropdown > .ant-dropdown-menu,
+.ant-dropdown-menu-submenu-popup > .ant-dropdown-menu {
+  border-radius: var(--mst-radius-card);
+  padding: 6px;
+}
+
+.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item {
+  border-radius: var(--mst-radius-control);
+}
+
+/* Fallback: browser senza backdrop-filter → superfici opache */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :root {
+    --mst-glass-fill: var(--mst-glass-opaque);
+    --mst-glass-fill-strong: var(--mst-glass-opaque);
+  }
+}
+
+/* Riduci trasparenza: interruttore nel Profilo (Safari non ha la media query) */
+:root[data-reduce-transparency='true'] {
+  --mst-glass-filter: none;
+  --mst-glass-fill: var(--mst-glass-opaque);
+  --mst-glass-fill-strong: var(--mst-glass-opaque);
+  --mst-container-fill: var(--mst-container-opaque);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --mst-glass-filter: none;
+    --mst-glass-fill: var(--mst-glass-opaque);
+    --mst-glass-fill-strong: var(--mst-glass-opaque);
+    --mst-container-fill: var(--mst-container-opaque);
+  }
+}
+
+/* Aumenta contrasto: niente trasparenza, bordi e testi più marcati */
+@media (prefers-contrast: more) {
+  :root {
+    --mst-glass-filter: none;
+    --mst-glass-fill: var(--mst-glass-opaque);
+    --mst-glass-fill-strong: var(--mst-glass-opaque);
+    --mst-glass-edge: var(--mst-border-strong);
+    --mst-container-fill: var(--mst-container-opaque);
+  }
+
+  .mst-content-surface,
+  .ant-card,
+  .ant-modal .ant-modal-content {
+    border-color: var(--mst-border-strong) !important;
+  }
+
+  .ant-menu-item-selected {
+    outline: 2px solid var(--mst-primary);
+    outline-offset: -2px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Shell: sidebar flottante, barra a capsula sticky, contenuti         */
+/* La pagina (window) scorre: i contenuti passano SOTTO la barra.      */
+/* ------------------------------------------------------------------ */
+
+.mst-shell.ant-layout {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: transparent;
+}
+
+.mst-shell .mst-main.ant-layout {
+  background: transparent;
+  min-width: 0;
+}
+
+/* Sidebar desktop: staccata dai bordi, raggio 24 */
+.mst-shell .mst-sider.ant-layout-sider {
+  position: sticky;
+  top: 12px;
+  align-self: flex-start;
+  height: calc(100vh - 24px);
+  height: calc(100dvh - 24px);
+  margin: 12px 0 12px max(12px, env(safe-area-inset-left, 0px));
+  border-radius: var(--mst-radius-container);
+  overflow: hidden;
+  z-index: 30;
+}
+
+.mst-shell .mst-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mst-sider-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 0 12px;
+}
+
+.mst-nav-menu.ant-menu,
+.mst-nav-menu.ant-menu-inline,
+.mst-nav-menu.ant-menu-root.ant-menu-inline {
+  background: transparent;
+  border-inline-end: 0 !important;
+}
+
+.mst-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 18px 14px;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--mst-text);
+  white-space: nowrap;
+}
+
+.mst-brand--compact {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.mst-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--mst-radius-control);
+  background: var(--mst-primary);
+  color: var(--mst-on-primary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* Stemma del club in basso a sinistra (sidebar e menu mobile) */
+.mst-club-logo {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding: 10px 18px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--mst-border-subtle);
+}
+
+.mst-club-logo img {
+  display: block;
+  width: 132px;
+  height: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  /* leggero rilievo per staccarlo dal vetro senza aggiungere superfici */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+}
+
+.mst-club-logo--compact {
+  justify-content: center;
+  padding-inline: 8px;
+}
+
+.mst-club-logo--compact img {
+  width: 56px;
+}
+
+.mst-nav-drawer .ant-drawer-footer {
+  padding: 0;
+  border-top: 0;
+}
+
+.mst-nav-drawer .mst-brand {
+  padding: 0;
+}
+
+/* Barra superiore: wrapper sticky (copre la status bar iOS) + capsula */
+.mst-header-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) max(24px, env(safe-area-inset-right, 0px)) 8px 12px;
+  /* scroll-edge: i contenuti sfumano mentre passano sotto la barra */
+  background: linear-gradient(180deg, var(--mst-scroll-edge) 0%, var(--mst-scroll-edge) 55%, transparent 100%);
+}
+
+/* Tinta dietro la status bar (testo bianco con black-translucent) */
+.mst-header-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--mst-status-bar-tint);
+  pointer-events: none;
+}
+
+/* Scroll-edge: sfumatura morbida sotto la barra */
+.mst-header-wrap::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 20px;
+  background: linear-gradient(180deg, var(--mst-scroll-edge) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.mst-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 8px;
+  border-radius: 28px;
+}
+
+.mst-toolbar-spacer {
+  flex: 1;
+}
+
+.mst-toolbar-title {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--mst-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mst-user-btn.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 10px 0 6px;
+  border-radius: 22px;
+}
+
+.mst-user-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mst-toolbar .mst-nav-btn.ant-btn-circle {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  font-size: 18px;
+}
+
+.mst-menu-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 120px;
+}
+
+/* Feedback interattivo dei controlli di navigazione */
+.mst-nav-btn,
+.mst-nav-menu .ant-menu-item {
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 180ms ease;
+}
+
+@media (hover: hover) {
+  .mst-nav-btn:hover {
+    transform: scale(var(--mst-hover-scale));
+  }
+}
+
+.mst-nav-btn:active {
+  transform: scale(var(--mst-press-scale));
+}
+
+.mst-nav-menu .ant-menu-item:active {
+  transform: scale(0.98);
+}
+
+/* Contenuti: materiale "standard" solido e tinto (NON vetro) */
+.mst-content.ant-layout-content {
+  padding: 4px max(24px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) 12px;
+  min-width: 0;
+}
+
+.mst-content-surface {
+  background: var(--mst-container-fill);
+  border: 1px solid var(--mst-border-subtle);
+  border-radius: var(--mst-radius-container);
+  box-shadow: var(--mst-shadow-sm);
+  padding: 24px;
+  min-height: 280px;
+}
+
+/* La pagina non deve mai scorrere in orizzontale (la finestra scorre sotto la barra di vetro):
+   tabelle larghe scorrono al loro interno, le intestazioni con pulsanti vanno a capo */
+.mst-content-surface {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.mst-content-surface .ant-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mst-content-surface .flex.justify-between {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mst-content-surface .flex.justify-between > .ant-space,
+.mst-content-surface .flex.justify-between > .flex {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.mst-content-surface .ant-upload-wrapper,
+.mst-content-surface .ant-upload {
+  max-width: 100%;
+}
+
+.mst-content-surface .ant-card {
+  box-shadow: var(--mst-shadow-sm);
+}
+
+/* Drawer mobile: pannello vetro (la maschera NON viene sfocata) */
+.mst-nav-drawer .ant-drawer-content-wrapper {
+  border-radius: 0 var(--mst-radius-container) var(--mst-radius-container) 0;
+  overflow: hidden;
+  box-shadow: var(--mst-shadow-lg);
+}
+
+.mst-nav-drawer .ant-drawer-content {
+  border-width: 0 1px 0 0;
+  border-radius: 0 var(--mst-radius-container) var(--mst-radius-container) 0;
+}
+
+.mst-nav-drawer .ant-drawer-header {
+  background: transparent;
+  border-bottom-color: var(--mst-glass-edge);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+}
+
+.mst-nav-drawer .ant-drawer-body {
+  padding-left: env(safe-area-inset-left, 0px) !important;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px) !important;
+}
+
+/* Modali: superfici solide elevate (contengono form = contenuto) */
+.ant-modal .ant-modal-content {
+  border: 1px solid var(--mst-border-subtle);
+  box-shadow: var(--mst-shadow-lg);
+}
+
+/* Pagina di login */
+.mst-login {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+
+.mst-login-card.ant-card {
+  width: 100%;
+  max-width: 380px;
+  border-radius: var(--mst-radius-container);
+  border-color: var(--mst-border-subtle);
+  box-shadow: var(--mst-shadow-lg);
+}
+
+.mst-login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.mst-login-brand .mst-brand-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--mst-radius-card);
+  font-size: 16px;
+}
+
+.mst-login-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--mst-text);
+}
+
+.mst-login-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--mst-text-secondary);
+}
+
+/* Pagina di errore (errorElement) */
+.mst-error-page {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px));
+}
+
+.mst-error-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--mst-surface);
+  border: 1px solid var(--mst-border-subtle);
+  border-radius: var(--mst-radius-container);
+  box-shadow: var(--mst-shadow-lg);
+}
+
+/* ------------------------------------------------------------------ */
+/* Mobile                                                              */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 767px) {
+  .mst-header-wrap {
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) max(8px, env(safe-area-inset-right, 0px)) 6px max(8px, env(safe-area-inset-left, 0px));
+  }
+
+  .mst-toolbar {
+    height: 52px;
+    padding: 0 6px;
+    border-radius: 26px;
+  }
+
+  .mst-content.ant-layout-content {
+    padding: 2px max(8px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+  }
+
+  .mst-content-surface {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  /* Modali sotto la status bar e sopra l'home indicator */
+  .ant-modal-wrap {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .ant-modal-body {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 
@@ -108,8 +674,17 @@ body {
   }
 
   .ant-input,
-  .ant-select-selector,
   .ant-picker {
+    min-height: 40px !important;
+  }
+
+  /* L'altezza va data al contenitore della select (non solo al selettore interno, che altrimenti deborda
+     sopra i campi vicini, soprattutto con size="small") */
+  .ant-select-single {
+    height: 40px !important;
+  }
+
+  .ant-select-multiple .ant-select-selector {
     min-height: 40px !important;
   }
 }
@@ -154,4 +729,30 @@ body {
 
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Riduci movimento: niente scale/transizioni                          */
+/* ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mst-press-scale: 1;
+    --mst-hover-scale: 1;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+
+  .mst-nav-btn,
+  .mst-nav-btn:hover,
+  .mst-nav-btn:active,
+  .mst-nav-menu .ant-menu-item:active {
+    transform: none !important;
+  }
 }
