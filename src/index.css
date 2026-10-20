@@ -732,6 +732,139 @@ body::before {
 }
 
 /* ------------------------------------------------------------------ */
+/* Grafico entrate/uscite (Statistiche)                                */
+/* ------------------------------------------------------------------ */
+.mst-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.mst-chart-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--mst-text-secondary);
+}
+
+.mst-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mst-chart-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.mst-chart-body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mst-chart-axis {
+  flex: none;
+  overflow: visible;
+}
+
+.mst-chart-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.mst-chart-plot {
+  display: block;
+  cursor: default;
+  outline: none;
+  touch-action: pan-x pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mst-chart-plot:focus-visible {
+  outline: 2px solid var(--mst-focus-ring);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.mst-chart-group {
+  transition: opacity 160ms ease-out;
+}
+
+/* le colonne crescono dalla linea dello zero (niente rimbalzo: nessun gesto le ha lanciate) */
+.mst-chart-bar {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: mst-bar-grow 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes mst-bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.mst-chart-tooltip {
+  position: absolute;
+  top: 8px;
+  z-index: 2;
+  pointer-events: none;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--mst-elevated);
+  border: 1px solid var(--mst-border-subtle);
+  box-shadow: var(--mst-shadow-lg);
+  font-size: 13px;
+  color: var(--mst-text-secondary);
+}
+
+.mst-chart-tooltip-title {
+  font-weight: 600;
+  color: var(--mst-text);
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.mst-chart-tooltip-row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.6;
+}
+
+.mst-chart-tooltip-value {
+  color: var(--mst-text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.mst-chart-tooltip-total {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--mst-border-subtle);
+}
+
+.mst-chart-tooltip-total .mst-chart-tooltip-value {
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ */
 /* Riduci movimento: niente scale/transizioni                          */
 /* ------------------------------------------------------------------ */
 @media (prefers-reduced-motion: reduce) {

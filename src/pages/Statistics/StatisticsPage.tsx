@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import { apiService } from '../../services/ApiService';
 import SearchableSelect from '../../components/SearchableSelect';
 import { formatEuro, italianStatisticProps } from '../../helpers/format';
+import IncomeExpenseChart from './IncomeExpenseChart';
 
 const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
@@ -187,6 +188,10 @@ export default function StatisticsPage() {
           </Card>
         </Col>
       </Row>
+
+      <Card title="Entrate e uscite" className="mb-4" loading={loading && !stats}>
+        <IncomeExpenseChart byMonth={stats?.byMonth || []} isMobile={isMobile} />
+      </Card>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
