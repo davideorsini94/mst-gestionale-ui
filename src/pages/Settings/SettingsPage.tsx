@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Form, Input, Button, Divider, List, InputNumber, Tabs, Switch, Alert, Upload, Table, Popconfirm, Space, Tag, Grid, Result } from 'antd';
 import { message } from '../../services/notify';
-import { SaveOutlined, MailOutlined, SettingOutlined, DatabaseOutlined, CloudDownloadOutlined, DeleteOutlined, UploadOutlined, CloudServerOutlined, LockOutlined } from '@ant-design/icons';
+import { SaveOutlined, SendOutlined, MailOutlined, SettingOutlined, DatabaseOutlined, CloudDownloadOutlined, DeleteOutlined, UploadOutlined, CloudServerOutlined, LockOutlined } from '@ant-design/icons';
 import { apiService, getApiBaseUrl } from '@services/ApiService.ts';
 import { authService } from '../../services/AuthService';
 
@@ -34,6 +34,9 @@ export default function SettingsPage() {
   const [form] = Form.useForm();
   const [smtpForm] = Form.useForm();
   const [savingSmtp, setSavingSmtp] = useState(false);
+  const [testEmailTo, setTestEmailTo] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [adminEmail, setAdminEmail] = useState('');
   const [savingAdminEmail, setSavingAdminEmail] = useState(false);
   const [backups, setBackups] = useState<any[]>([]);
@@ -109,6 +112,30 @@ export default function SettingsPage() {
       loadSettings();
     } catch (error) {
       message.error('Errore nella cancellazione');
+    }
+  };
+
+  /** Invio di prova con i valori attuali del form (anche non salvati); password vuota = quella salvata. */
+  const handleSendTestEmail = async () => {
+    const to = testEmailTo.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+      message.error('Inserisci un indirizzo email valido');
+      return;
+    }
+    setSendingTest(true);
+    setTestResult(null);
+    try {
+      const values = smtpForm.getFieldsValue() as SmtpConfig;
+      const res = await apiService.post<{ message: string; usedHost: string }>(
+        '/settings/smtp/test',
+        { to, config: { ...values, port: values.port ? Number(values.port) : undefined } },
+        { timeout: 60_000 },
+      );
+      setTestResult({ ok: true, text: `${res.message} (server ${res.usedHost}). Controlla la casella, anche nello spam.` });
+    } catch (error: any) {
+      setTestResult({ ok: false, text: error?.response?.data?.message || 'Invio non riuscito' });
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -290,6 +317,40 @@ export default function SettingsPage() {
                 </Button>
               </Form.Item>
             </Form>
+
+            <Divider className="my-4" />
+            <div>
+              <div className="font-medium mb-1">Invio di prova</div>
+              <p className="mb-3 text-sm text-gray-600">
+                Invia un'email di prova a un indirizzo qualsiasi usando i valori del modulo qui sopra (anche se non
+                ancora salvati). Se il campo password è vuoto viene usata quella salvata.
+              </p>
+              <div className={`flex ${isMobile ? 'flex-col' : ''} gap-2`}>
+                <Input
+                  type="email"
+                  placeholder="es. tuo.nome@gmail.com"
+                  value={testEmailTo}
+                  onChange={(e) => setTestEmailTo(e.target.value)}
+                  onPressEnter={handleSendTestEmail}
+                  prefix={<MailOutlined />}
+                  aria-label="Indirizzo per l'email di prova"
+                  style={{ maxWidth: isMobile ? undefined : 360 }}
+                />
+                <Button icon={<SendOutlined />} loading={sendingTest} onClick={handleSendTestEmail}>
+                  Invia email di prova
+                </Button>
+              </div>
+              {testResult && (
+                <Alert
+                  className="mt-3"
+                  type={testResult.ok ? 'success' : 'error'}
+                  showIcon
+                  message={testResult.text}
+                  closable
+                  onClose={() => setTestResult(null)}
+                />
+              )}
+            </div>
           </Card>
 
           <Card title="Email Amministratore">
