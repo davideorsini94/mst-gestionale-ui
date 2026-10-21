@@ -204,7 +204,12 @@ export default function SettingsPage() {
 
   const handleDownloadBackup = async (filename: string) => {
     try {
-      window.open(`${getApiBaseUrl()}/settings/backup/download/${filename}`, '_blank');
+      // window.open non invia l'header Authorization: il token va in query (come per le ricevute)
+      const token = authService.getToken();
+      window.open(
+        `${getApiBaseUrl()}/settings/backup/download/${encodeURIComponent(filename)}?token=${encodeURIComponent(token ?? '')}`,
+        '_blank',
+      );
     } catch (error) {
       message.error('Errore nel download del backup');
     }
