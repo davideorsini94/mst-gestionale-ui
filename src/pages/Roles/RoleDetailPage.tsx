@@ -7,6 +7,8 @@ import {
   Button,
   Space,
   Spin,
+  Alert,
+  Tag,
 } from 'antd';
 import { message } from '../../services/notify';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
@@ -52,6 +54,16 @@ const CAPABILITY_DESCRIPTIONS: Record<string, string> = {
 
 const ALL_CAPABILITIES = Object.keys(CAPABILITY_DESCRIPTIONS);
 
+/** Permessi sul denaro e sui backup: solo il ruolo admin (il server rifiuta di assegnarli ad altri ruoli). */
+const ADMIN_ONLY = new Set([
+  'CAN_VIEW_TRANSACTIONS',
+  'CAN_MANAGE_TRANSACTIONS',
+  'CAN_VIEW_STATISTICS',
+  'CAN_VIEW_CATEGORIES',
+  'CAN_MANAGE_CATEGORIES',
+  'CAN_MANAGE_BACKUP',
+]);
+
 export default function RoleDetailPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
@@ -73,7 +85,10 @@ export default function RoleDetailPage() {
     try {
       const data = await apiService.get<Role>(`/roles/${code}`);
       setRole(data);
-      setSelectedCapabilities(data.capabilities?.map((c) => c.capability) || []);
+      // permessi riservati all'admin rimasti su un altro ruolo: non valgono e non si risalvano
+      setSelectedCapabilities(
+        (data.capabilities?.map((c) => c.capability) || []).filter((c) => data.code === 'admin' || !ADMIN_ONLY.has(c)),
+      );
     } catch (error) {
       message.error('Errore nel caricamento del ruolo');
       navigate('/roles');
@@ -106,8 +121,11 @@ export default function RoleDetailPage() {
     }
   };
 
+  const isAdminRole = role?.code === 'admin';
+  const assignable = (cap: string) => isAdminRole || !ADMIN_ONLY.has(cap);
+
   const selectAll = () => {
-    setSelectedCapabilities(ALL_CAPABILITIES);
+    setSelectedCapabilities(ALL_CAPABILITIES.filter(assignable));
   };
 
   const deselectAll = () => {
@@ -133,6 +151,16 @@ export default function RoleDetailPage() {
       title: 'Descrizione',
       dataIndex: 'description',
       key: 'description',
+      render: (description: string, record: { code: string }) => (
+        <span>
+          {description}
+          {ADMIN_ONLY.has(record.code) && (
+            <Tag className="ml-2" color="gold">
+              Solo admin
+            </Tag>
+          )}
+        </span>
+      ),
     },
     {
       title: 'Abilitato',
@@ -141,7 +169,7 @@ export default function RoleDetailPage() {
       align: 'center' as const,
       render: (_: unknown, record: { code: string }) => (
         <Checkbox
-          disabled={!canManageCapabilities}
+          disabled={!canManageCapabilities || !assignable(record.code)}
           aria-label={CAPABILITY_DESCRIPTIONS[record.code] || record.code}
           checked={selectedCapabilities.includes(record.code)}
           onChange={(e) => handleCheckboxChange(record.code, e.target.checked)}
@@ -185,6 +213,16 @@ export default function RoleDetailPage() {
 
       {role?.description && (
         <p className="text-gray-500 mb-4">{role.description}</p>
+      )}
+
+      {!isAdminRole && (
+        <Alert
+          type="info"
+          showIcon
+          className="mb-4"
+          message="I permessi su movimenti, statistiche, voci di bilancio e backup sono riservati al ruolo admin"
+          description="Tutto ciò che riguarda i soldi è visibile solo agli amministratori: questi permessi non si possono dare ad altri ruoli."
+        />
       )}
 
       <Card>

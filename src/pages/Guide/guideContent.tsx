@@ -802,6 +802,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         tips: [
           'I permessi «Visualizza…» permettono di vedere, quelli «Gestione…» anche di creare e modificare. Di solito servono tutti e due.',
           'Chi riceve permessi nuovi li vede alla prossima apertura del gestionale, senza dover rientrare.',
+          'I permessi segnati **Solo admin** (movimenti, statistiche, voci di bilancio e backup) non si possono dare ad altri ruoli: tutto ciò che riguarda i soldi lo vedono solo gli amministratori.',
         ],
         warning:
           'I permessi dei tre ruoli già pronti (admin, staff, user) tornano quelli di partenza a ogni riavvio del ' +
