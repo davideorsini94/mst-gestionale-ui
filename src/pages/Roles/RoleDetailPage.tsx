@@ -11,6 +11,8 @@ import {
 import { message } from '../../services/notify';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import { apiService } from '../../services/ApiService';
+import { useCapability } from '../../hooks/useAuth';
+import { getErrorMessage } from '../../helpers/errors';
 
 interface Capability {
   uuid: string;
@@ -43,6 +45,8 @@ const CAPABILITY_DESCRIPTIONS: Record<string, string> = {
   CAN_VIEW_CATEGORIES: 'Visualizza categorie',
   CAN_MANAGE_SETTINGS: 'Gestione impostazioni',
   CAN_VIEW_SETTINGS: 'Visualizza impostazioni',
+  // senza questa voce, salvando il ruolo il backup veniva tolto anche a chi lo aveva
+  CAN_MANAGE_BACKUP: 'Backup e ripristino',
   CAN_VIEW_DASHBOARD: 'Visualizza dashboard',
 };
 
@@ -55,6 +59,8 @@ export default function RoleDetailPage() {
   const [saving, setSaving] = useState(false);
   const [role, setRole] = useState<Role | null>(null);
   const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
+  // salvare le capability di un ruolo richiede CAN_MANAGE_CAPABILITIES (oltre a CAN_MANAGE_ROLES per la pagina)
+  const canManageCapabilities = useCapability('CAN_MANAGE_CAPABILITIES');
 
   useEffect(() => {
     if (code) {
@@ -85,9 +91,8 @@ export default function RoleDetailPage() {
       });
       message.success('Capabilities salvate con successo');
       navigate('/roles');
-    } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || 'Errore nel salvataggio';
-      message.error(errorMsg);
+    } catch (error) {
+      message.error(getErrorMessage(error, 'Errore nel salvataggio delle capability'));
     } finally {
       setSaving(false);
     }
@@ -136,6 +141,8 @@ export default function RoleDetailPage() {
       align: 'center' as const,
       render: (_: unknown, record: { code: string }) => (
         <Checkbox
+          disabled={!canManageCapabilities}
+          aria-label={CAPABILITY_DESCRIPTIONS[record.code] || record.code}
           checked={selectedCapabilities.includes(record.code)}
           onChange={(e) => handleCheckboxChange(record.code, e.target.checked)}
         />
@@ -151,7 +158,7 @@ export default function RoleDetailPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
         <div className="flex items-center gap-4">
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/roles')}>
             Indietro
@@ -160,18 +167,20 @@ export default function RoleDetailPage() {
             Ruolo: {role?.code}
           </h1>
         </div>
-        <Space>
-          <Button onClick={selectAll}>Seleziona tutti</Button>
-          <Button onClick={deselectAll}>Deseleziona tutti</Button>
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            onClick={handleSave}
-            loading={saving}
-          >
-            Salva
-          </Button>
-        </Space>
+        {canManageCapabilities && (
+          <Space wrap>
+            <Button onClick={selectAll}>Seleziona tutti</Button>
+            <Button onClick={deselectAll}>Deseleziona tutti</Button>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={handleSave}
+              loading={saving}
+            >
+              Salva
+            </Button>
+          </Space>
+        )}
       </div>
 
       {role?.description && (

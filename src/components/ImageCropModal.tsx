@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Modal, Button, Slider } from 'antd';
+import { Modal, Button, Slider, Result } from 'antd';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
@@ -42,10 +42,13 @@ export default function ImageCropModal({
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [scale, setScale] = useState(1);
   const [imgSrc, setImgSrc] = useState('');
+  // file che il browser non riesce a leggere come immagine (es. un .txt rinominato .jpg)
+  const [imgError, setImgError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
   // Load image when file changes
   useEffect(() => {
+    setImgError(false);
     if (imageFile) {
       const reader = new FileReader();
       reader.addEventListener('load', () => {
@@ -60,7 +63,16 @@ export default function ImageCropModal({
   const onImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
       const { width, height } = e.currentTarget;
-      setCrop(centerAspectCrop(width, height, aspectRatio));
+      const initial = centerAspectCrop(width, height, aspectRatio);
+      setCrop(initial);
+      // senza toccare il riquadro onComplete non scatta: "Conferma" chiudeva senza caricare nulla
+      setCompletedCrop({
+        unit: 'px',
+        x: (initial.x / 100) * width,
+        y: (initial.y / 100) * height,
+        width: (initial.width / 100) * width,
+        height: (initial.height / 100) * height,
+      });
     },
     [aspectRatio],
   );
@@ -123,6 +135,7 @@ export default function ImageCropModal({
     setCompletedCrop(undefined);
     setScale(1);
     setImgSrc('');
+    setImgError(false);
     onClose();
   };
 
@@ -136,14 +149,21 @@ export default function ImageCropModal({
         <Button key="cancel" onClick={handleClose}>
           Annulla
         </Button>,
-        <Button key="confirm" type="primary" onClick={handleConfirm}>
+        <Button key="confirm" type="primary" onClick={handleConfirm} disabled={imgError || !completedCrop}>
           Conferma
         </Button>,
       ]}
       destroyOnHidden
     >
       <div className="flex flex-col items-center">
-        {imgSrc && (
+        {imgError && (
+          <Result
+            status="warning"
+            title="Il file non è un'immagine leggibile"
+            subTitle="Scegli una foto JPG, PNG, WEBP o GIF."
+          />
+        )}
+        {imgSrc && !imgError && (
           <>
             <div className="mb-4 w-full">
               <label className="block text-sm mb-1">Zoom</label>
@@ -166,9 +186,10 @@ export default function ImageCropModal({
                 <img
                   ref={imgRef}
                   src={imgSrc}
-                  alt="Crop"
+                  alt="Anteprima della foto da ritagliare"
                   style={{ transform: `scale(${scale})`, maxWidth: '100%' }}
                   onLoad={onImageLoad}
+                  onError={() => setImgError(true)}
                 />
               </ReactCrop>
             </div>

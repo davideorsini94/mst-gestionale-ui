@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, Divider, Space, Grid, Segmented, Switch, Typography } from 'antd';
+import { Card, Form, Input, Button, Divider, Space, Grid, Segmented, Switch, Typography, Spin } from 'antd';
 import { message } from '../../services/notify';
 import { SaveOutlined, LockOutlined, BgColorsOutlined, SunOutlined, MoonOutlined, DesktopOutlined } from '@ant-design/icons';
 import { apiService } from '../../services/ApiService';
-import { authService } from '../../services/AuthService';
+import { authService, type User } from '../../services/AuthService';
+import { useCapability, useCurrentUser } from '../../hooks/useAuth';
+import { emptyToNull, getErrorMessage } from '../../helpers/errors';
 import { useThemePrefs } from '../../theme/ThemeProvider';
 import type { ThemeMode } from '../../theme/preferences';
 
@@ -26,9 +28,9 @@ export default function ProfilePage() {
     const [passwordForm] = Form.useForm();
     const [changingPassword, setChangingPassword] = useState(false);
 
-    const currentUser = authService.getUser();
+    const currentUser = useCurrentUser();
     // chi gestisce gli utenti modifica anche l'email; gli altri solo nome e cognome (l'email collega il profilo staff)
-    const canManageUsers = authService.hasCapability('CAN_MANAGE_USERS');
+    const canManageUsers = useCapability('CAN_MANAGE_USERS');
     const { mode, setMode, reduceTransparency, setReduceTransparency } = useThemePrefs();
 
     useEffect(() => {
@@ -54,13 +56,15 @@ export default function ProfilePage() {
         try {
             if (canManageUsers) {
                 const { username: _username, ...data } = values as UserProfile;
-                await apiService.put(`/users/${currentUser.uuid}`, data);
+                await apiService.put(`/users/${currentUser.uuid}`, { ...data, email: emptyToNull(data.email) });
             } else {
                 await apiService.put('/auth/me', { firstName: values.firstName, lastName: values.lastName });
             }
             message.success('Profilo aggiornato con successo');
-        } catch (error: any) {
-            message.error(error?.response?.data?.message || 'Errore nel salvataggio');
+            // nome nella barra in alto aggiornato subito (utente salvato al login)
+            apiService.get<User>('/auth/me').then((me) => authService.syncFromMe(me)).catch(() => undefined);
+        } catch (error) {
+            message.error(getErrorMessage(error, 'Errore nel salvataggio del profilo'));
         } finally {
             setSaving(false);
         }
@@ -78,7 +82,7 @@ export default function ProfilePage() {
                 authService.logout();
             }, 1500);
         } catch (error: any) {
-            const errorMessage = error?.response?.data?.message || 'Errore nel cambio password';
+            const errorMessage = getErrorMessage(error, 'Errore nel cambio password');
             message.error({
                 content: errorMessage,
                 duration: 5,
@@ -91,7 +95,9 @@ export default function ProfilePage() {
         <div style={{ maxWidth: isMobile ? '100%' : 600, margin: '0 auto', padding: isMobile ? '0 8px' : 0 }}>
             <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 'bold', marginBottom: 16 }}>Il Mio Profilo</h1>
 
-            <Card loading={loading} bodyStyle={{ padding: isMobile ? 12 : 24 }}>
+            {/* Spin e non Card loading: il Form resta montato e setFieldsValue lo trova collegato */}
+            <Card styles={{ body: { padding: isMobile ? 12 : 24 } }}>
+                <Spin spinning={loading}>
                 <Form form={form} layout="vertical" onFinish={handleSaveProfile}>
                     <Form.Item name="username" label="Username">
                         <Input disabled />
@@ -116,13 +122,14 @@ export default function ProfilePage() {
                         </Button>
                     </Form.Item>
                 </Form>
+                </Spin>
             </Card>
 
             <Divider style={{ margin: isMobile ? '16px 0' : '24px 0' }} />
 
             <Card
                 title={<Space><BgColorsOutlined /> Aspetto</Space>}
-                bodyStyle={{ padding: isMobile ? 12 : 24 }}
+                styles={{ body: { padding: isMobile ? 12 : 24 } }}
             >
                 <div className="flex flex-col gap-4">
                     <div>
@@ -162,7 +169,7 @@ export default function ProfilePage() {
 
             <Card
                 title={<Space><LockOutlined /> Cambia Password</Space>}
-                bodyStyle={{ padding: isMobile ? 12 : 24 }}
+                styles={{ body: { padding: isMobile ? 12 : 24 } }}
             >
                 <Form form={passwordForm} layout="vertical" onFinish={handleChangePassword}>
                     <Form.Item
@@ -177,10 +184,10 @@ export default function ProfilePage() {
                         label="Nuova Password"
                         rules={[
                             { required: true, message: 'Inserisci la nuova password' },
-                            { min: 6, message: 'La password deve avere almeno 6 caratteri' },
+                            { min: 8, message: 'La password deve avere almeno 8 caratteri' },
                         ]}
                     >
-                        <Input.Password placeholder="Minimo 6 caratteri" />
+                        <Input.Password placeholder="Minimo 8 caratteri" />
                     </Form.Item>
                     <Form.Item
                         name="confirmPassword"

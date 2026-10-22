@@ -4,6 +4,8 @@ import { message } from '../../services/notify';
 import { ReloadOutlined, SendOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { apiService } from '../../services/ApiService';
+import { getErrorMessage } from '../../helpers/errors';
+import { useLatestRequest } from '../../hooks/useLatestRequest';
 
 interface Reminder {
   uuid: string;
@@ -20,14 +22,16 @@ interface Reminder {
   createdAt: string;
 }
 
+// stessi tipi delle email (backend: reminders/email.service.ts), senza il prefisso "Scadenza" ripetuto in ogni riga
 const typeLabels: Record<string, string> = {
   VEHICLE_TAX: 'Bollo Veicolo',
   VEHICLE_INSPECTION: 'Tagliando/Revisione',
   VEHICLE_INSURANCE: 'Assicurazione Veicolo',
   MEDICAL_CERTIFICATE: 'Certificato Medico',
   DRIVING_LICENSE: 'Patente',
-  SKI_INSTRUCTOR_LICENSE: 'Licenza Maestro Sci',
+  SKI_INSTRUCTOR_LICENSE: 'Licenza Maestro di Sci',
   COACH_LICENSE: 'Licenza Allenatore',
+  MEMBER_MEDICAL_CERTIFICATE: 'Visita Medica Tesserato',
 };
 
 const statusColors: Record<string, string> = {
@@ -75,9 +79,12 @@ export default function RemindersPage() {
   const [loading, setLoading] = useState(true);
   const [checkingNow, setCheckingNow] = useState(false);
   const [resending, setResending] = useState<string | null>(null);
+  const beginRequest = useLatestRequest();
 
   // Paginazione lato server: GET /reminders?filters={page,pageSize,andFilters.equal.status}
   const loadReminders = useCallback(async (tab: TabKey, page: number, pageSize: number) => {
+    // cambiando tab in fretta, la risposta di un tab precedente non deve sovrascrivere quella attuale
+    const isCurrent = beginRequest();
     setLoading(true);
     try {
       const filters: Record<string, unknown> = { page, pageSize };
@@ -88,14 +95,15 @@ export default function RemindersPage() {
       const [data, total] = await apiService.get<[Reminder[], number]>(
         `/reminders?filters=${encodeURIComponent(JSON.stringify(filters))}`
       );
+      if (!isCurrent()) return;
       setReminders(data);
       setPagination({ current: page, pageSize, total });
     } catch (error) {
-      message.error('Errore nel caricamento dei reminder');
+      if (isCurrent()) message.error('Errore nel caricamento dei reminder');
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, []);
+  }, [beginRequest]);
 
   // Contatori dei tab: GET /reminders/counts
   const loadCounts = useCallback(async () => {
@@ -130,7 +138,7 @@ export default function RemindersPage() {
       message.success('Controllo reminder completato');
       refresh();
     } catch (error) {
-      message.error('Errore durante il controllo');
+      message.error(getErrorMessage(error, 'Errore durante il controllo'));
     } finally {
       setCheckingNow(false);
     }
@@ -143,7 +151,7 @@ export default function RemindersPage() {
       message.success('Reminder reinviato');
       refresh();
     } catch (error) {
-      message.error('Errore nel reinvio');
+      message.error(getErrorMessage(error, 'Errore nel reinvio'));
     } finally {
       setResending(null);
     }
@@ -156,14 +164,16 @@ export default function RemindersPage() {
       title: 'Tipo',
       dataIndex: 'type',
       key: 'type',
-      width: 180,
+      width: isMobile ? 140 : 180,
       render: (type: string) => typeLabels[type] || type,
     },
     {
       title: 'Descrizione',
       dataIndex: 'subjectDescription',
       key: 'subjectDescription',
-      ellipsis: true,
+      // su mobile la colonna troncata mostrava solo poche lettere: il testo va a capo
+      ellipsis: !isMobile,
+      width: isMobile ? 200 : undefined,
     },
     {
       title: 'Destinatario',

@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Tag, Space, Input, Tooltip, theme } from 'antd';
+import { Table, Button, Tag, Space, Tooltip, Grid, theme, type TableProps } from 'antd';
 import { message } from '../../services/notify';
-import { PlusOutlined, EyeOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
+import { PlusOutlined, EyeOutlined, WarningOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/ApiService';
+import SearchBox from '../../components/SearchBox';
+import { useCapability } from '../../hooks/useAuth';
+import { useLatestRequest } from '../../hooks/useLatestRequest';
 import dayjs from 'dayjs';
+import { LoadErrorEmpty } from '../../components/StatusPages';
+
+const { useBreakpoint } = Grid;
 
 interface Staff {
   uuid: string;
@@ -27,6 +33,12 @@ const statusColors: Record<string, string> = {
   ON_LEAVE: 'orange',
 };
 
+const statusLabels: Record<string, string> = {
+  ACTIVE: 'Attivo',
+  INACTIVE: 'Inattivo',
+  ON_LEAVE: 'In congedo',
+};
+
 const roleLabels: Record<string, string> = {
   INSTRUCTOR: 'Istruttore',
   DRIVER: 'Autista',
@@ -35,69 +47,63 @@ const roleLabels: Record<string, string> = {
   OTHER: 'Altro',
 };
 
-interface PaginationState {
-  current: number;
+interface Query {
+  page: number;
   pageSize: number;
-  total: number;
+  /** ricerca confermata (Invio/Cerca), non il testo che si sta scrivendo */
+  search: string;
 }
 
 export default function StaffPage() {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
+  const canManageStaff = useCapability('CAN_MANAGE_STAFF');
   const [staff, setStaff] = useState<Staff[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [pagination, setPagination] = useState<PaginationState>({
-    current: 1,
-    pageSize: 10,
-    total: 0,
-  });
+  const [searchText, setSearchText] = useState('');
+  const [loadError, setLoadError] = useState(false);
+  const [query, setQuery] = useState<Query>({ page: 1, pageSize: 10, search: '' });
   const navigate = useNavigate();
   const { token } = theme.useToken();
+  const beginRequest = useLatestRequest();
 
   useEffect(() => {
-    loadData(1, 10, search);
-  }, []);
-
-  const loadData = async (page: number, pageSize: number, searchText: string) => {
-    setLoading(true);
-    try {
-      const filters: any = {
-        page,
-        pageSize,
-      };
-
-      if (searchText) {
-        filters.orFilters = {
-          like: {
-            firstName: searchText,
-            lastName: searchText,
-            email: searchText,
-          },
-        };
+    const isCurrent = beginRequest();
+    const load = async () => {
+      setLoading(true);
+      try {
+        const filters: Record<string, unknown> = { page: query.page, pageSize: query.pageSize };
+        if (query.search) {
+          filters.orFilters = {
+            like: {
+              firstName: query.search,
+              lastName: query.search,
+              email: query.search,
+            },
+          };
+        }
+        const response = await apiService.get<[Staff[], number]>(
+          `/staff?filters=${encodeURIComponent(JSON.stringify(filters))}`
+        );
+        if (!isCurrent()) return;
+        setLoadError(false);
+        setStaff(response[0]);
+        setTotal(response[1]);
+      } catch (error) {
+        if (isCurrent()) {
+          setLoadError(true);
+          message.error('Errore nel caricamento dello staff');
+        }
+      } finally {
+        if (isCurrent()) setLoading(false);
       }
+    };
+    load();
+  }, [query, beginRequest]);
 
-      const response = await apiService.get<[Staff[], number]>(
-        `/staff?filters=${encodeURIComponent(JSON.stringify(filters))}`
-      );
-      setStaff(response[0]);
-      setPagination({
-        current: page,
-        pageSize,
-        total: response[1],
-      });
-    } catch (error) {
-      message.error('Errore nel caricamento');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTableChange = (pag: any) => {
-    loadData(pag.current, pag.pageSize, search);
-  };
-
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    loadData(1, pagination.pageSize, value);
+  const handleTableChange: TableProps<Staff>['onChange'] = (pag) => {
+    setQuery((q) => ({ ...q, page: pag.current ?? 1, pageSize: pag.pageSize ?? q.pageSize }));
   };
 
   // Funzione per verificare se una data scade entro N giorni
@@ -182,7 +188,7 @@ export default function StaffPage() {
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Tag color={statusColors[status]}>{status}</Tag>
+        <Tag color={statusColors[status]}>{statusLabels[status] || status}</Tag>
       ),
     },
     {
@@ -203,41 +209,42 @@ export default function StaffPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Staff</h1>
-        <Space>
-          <Input.Search
-            enterButton={<Button icon={<SearchOutlined />} aria-label="Cerca" />}
-            placeholder="Cerca..."
-            prefix={<SearchOutlined />}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onSearch={handleSearch}
-            allowClear
-            style={{ width: 200 }}
+      <div className={`flex ${isMobile ? 'flex-col gap-3' : 'justify-between items-center gap-3'} mb-4`}>
+        <h1 className="text-2xl font-bold" style={{ margin: 0 }}>Staff</h1>
+        <div className={`flex flex-wrap gap-2 ${isMobile ? '' : 'justify-end items-center'}`}>
+          <SearchBox
+            value={searchText}
+            onChange={setSearchText}
+            onSearch={(value) => setQuery((q) => ({ ...q, search: value, page: 1 }))}
+            placeholder="Cerca nello staff…"
+            ariaLabel="Cerca nello staff"
+            width={isMobile ? '100%' : 240}
           />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => navigate('/staff/new')}
-          >
-            Nuovo Membro
-          </Button>
-        </Space>
+          {canManageStaff && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => navigate('/staff/new')}
+            >
+              Nuovo Membro
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Table
+      <Table<Staff>
         columns={columns}
         dataSource={staff}
+        locale={loadError ? { emptyText: <LoadErrorEmpty onRetry={() => setQuery((q) => ({ ...q }))} /> } : undefined}
         scroll={{ x: 'max-content' }}
         rowKey="uuid"
         loading={loading}
         pagination={{
-          current: pagination.current,
-          pageSize: pagination.pageSize,
-          total: pagination.total,
-          showSizeChanger: true,
-          showTotal: (total, range) => `${range[0]}-${range[1]} di ${total}`,
+          current: query.page,
+          pageSize: query.pageSize,
+          total,
+          showSizeChanger: !isMobile,
+          showTotal: isMobile ? undefined : (t, range) => `${range[0]}-${range[1]} di ${t}`,
           pageSizeOptions: ['10', '20', '50', '100'],
         }}
         onChange={handleTableChange}

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Form, Input, Button, Card, Alert } from 'antd';
-import { message } from '../../services/notify';
 import { UserOutlined, LockOutlined, ArrowLeftOutlined, MailOutlined } from '@ant-design/icons';
 import { authService } from '../../services/AuthService';
 import { apiService } from '../../services/ApiService';
@@ -18,13 +17,16 @@ export default function LoginPage() {
     setError(null);
     try {
       await authService.login(values.username, values.password);
+      // dopo una sessione scaduta riapre la pagina in cui si era (solo indirizzi interni dell'app)
+      const returnTo = authService.consumeReturnTo();
+      if (returnTo) window.location.hash = returnTo;
       window.location.reload();
     } catch (err: any) {
       console.error('Login error:', err);
       const raw = err?.response?.data?.message || err?.message;
       const errorMsg = err?.response?.status === 401 || raw === 'Unauthorized' ? 'Nome utente o password non corretti' : raw || 'Credenziali non valide';
+      // il messaggio compare nel riquadro sopra il form (prima anche in un toast identico)
       setError(errorMsg);
-      message.error(errorMsg);
     } finally {
       setLoading(false);
     }

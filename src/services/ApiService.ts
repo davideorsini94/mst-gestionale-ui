@@ -30,7 +30,8 @@ class ApiService {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          authService.logout();
+          // sessione scaduta: dopo il nuovo login si torna alla pagina in cui si era
+          authService.logout({ rememberPage: true });
         }
         return Promise.reject(error);
       }

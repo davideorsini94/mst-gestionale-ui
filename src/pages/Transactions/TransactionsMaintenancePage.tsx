@@ -7,6 +7,7 @@ import { ArrowLeftOutlined, CheckOutlined, ClearOutlined, RollbackOutlined, Tool
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { apiService } from '../../services/ApiService';
+import { getErrorMessage } from '../../helpers/errors';
 import { message } from '../../services/notify';
 import { formatEuro, italianStatisticProps, euroInputNumberProps } from '../../helpers/format';
 
@@ -67,6 +68,8 @@ function DuplicatesTab() {
     if (!data) return;
     const { toRemove, withReceipt } = data.summary;
     modal.confirm({
+      // azioni pericolose: Invio non deve confermare
+      autoFocusButton: 'cancel',
       title: `Rimuovere ${toRemove.toLocaleString('it-IT')} movimenti duplicati?`,
       content: (
         <div>
@@ -91,7 +94,7 @@ function DuplicatesTab() {
           message.success(`${res.removed} duplicati archiviati`);
           await load(1, pageSize);
         } catch (error: any) {
-          message.error(error?.response?.data?.message || 'Errore nella rimozione');
+          message.error(getErrorMessage(error, 'Errore nella rimozione'));
         } finally {
           setWorking(false);
         }
@@ -101,6 +104,8 @@ function DuplicatesTab() {
 
   const restore = () => {
     modal.confirm({
+      // azioni pericolose: Invio non deve confermare
+      autoFocusButton: 'cancel',
       title: 'Ripristinare tutti i movimenti archiviati?',
       content: 'I duplicati rimossi tornano tra i movimenti con i loro numeri di ricevuta originali.',
       okText: 'Ripristina',
@@ -116,7 +121,7 @@ function DuplicatesTab() {
           message.success(`${res.restored} movimenti ripristinati`);
           await load(1, pageSize);
         } catch (error: any) {
-          message.error(error?.response?.data?.message || 'Errore nel ripristino');
+          message.error(getErrorMessage(error, 'Errore nel ripristino'));
         } finally {
           setWorking(false);
         }
@@ -306,7 +311,7 @@ function AmountReviewTab() {
       setEdited({});
       await load();
     } catch (error: any) {
-      message.error(error?.response?.data?.message || `Errore: ${label}`);
+      message.error(getErrorMessage(error, `Errore: ${label}`));
     } finally {
       setWorking(false);
     }
@@ -358,6 +363,8 @@ function AmountReviewTab() {
     }[kind];
 
     modal.confirm({
+      // azioni pericolose: Invio non deve confermare
+      autoFocusButton: 'cancel',
       title: texts.title,
       content: (
         <div>
@@ -423,6 +430,8 @@ function AmountReviewTab() {
       .map((c) => ({ c, n: uncertainSelected.filter((i) => i.confidence === c).length }))
       .filter((x) => x.n > 0);
     modal.confirm({
+      // azioni pericolose: Invio non deve confermare
+      autoFocusButton: 'cancel',
       title: `Correggere ${selectedItems.length} movimenti, di cui ${uncertainSelected.length} non certi?`,
       content: (
         <div>
@@ -539,8 +548,8 @@ function AmountReviewTab() {
           options={(data?.batches ?? []).map((b) => ({ value: b.batch, label: `${dayjs(b.started.replace(' ', 'T')).format('DD/MM/YYYY HH:mm')} (${b.size} righe)` }))} />
         {status === 'PENDING' && (
           <Space.Compact>
-            <InputNumber value={min} min={0} precision={2} {...euroInputNumberProps} onChange={(v) => { setMin(Number(v ?? 0)); resetPage(); }} aria-label="Importo minimo" addonBefore="da €" style={{ width: 140 }} />
-            <InputNumber value={max} min={0} precision={2} {...euroInputNumberProps} onChange={(v) => { setMax(Number(v ?? 0)); resetPage(); }} aria-label="Importo massimo" addonBefore="a €" style={{ width: 140 }} />
+            <InputNumber value={min} min={0} precision={2} {...euroInputNumberProps} onChange={(v) => { setMin(Number(v ?? 0)); resetPage(); }} aria-label="Importo minimo" prefix="da €" style={{ width: 150 }} />
+            <InputNumber value={max} min={0} precision={2} {...euroInputNumberProps} onChange={(v) => { setMax(Number(v ?? 0)); resetPage(); }} aria-label="Importo massimo" prefix="a €" style={{ width: 150 }} />
           </Space.Compact>
         )}
         <Input placeholder="Cerca soggetto..." allowClear value={subject} onChange={(e) => { setSubject(e.target.value); resetPage(); }} style={{ width: isMobile ? '100%' : 200 }} />

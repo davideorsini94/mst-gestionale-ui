@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Alert, Button, Card, Form, Input } from 'antd';
 import { LockOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { apiService } from '../../services/ApiService';
+import { getErrorMessage } from '../../helpers/errors';
 import { authService } from '../../services/AuthService';
 
 const MIN_LENGTH = 8;
@@ -31,7 +32,7 @@ export default function ResetPasswordPage() {
       setError(
         err?.response?.status === 429
           ? 'Troppi tentativi: riprova tra qualche minuto'
-          : err?.response?.data?.message || 'Impossibile aggiornare la password',
+          : getErrorMessage(err, 'Impossibile aggiornare la password'),
       );
     } finally {
       setLoading(false);

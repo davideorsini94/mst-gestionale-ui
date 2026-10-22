@@ -698,6 +698,21 @@ body::before {
   .ant-select-multiple .ant-select-selector {
     min-height: 40px !important;
   }
+
+  /* Campi con icona o ✕ (affix wrapper): l'altezza va al contenitore. L'input interno alto 40px
+     usciva dal bordo e il placeholder ("Cerca...") finiva sotto il campo */
+  .ant-input-affix-wrapper {
+    min-height: 40px;
+  }
+
+  .ant-input-affix-wrapper > input.ant-input {
+    min-height: 0 !important;
+  }
+
+  /* pulsante "Cerca" accanto al campo: stessa altezza */
+  .mst-search-box > .ant-btn {
+    min-height: 40px;
+  }
 }
 
 /* Prevent zoom on input focus on iOS */
@@ -899,4 +914,27 @@ body::before {
   .mst-nav-menu .ant-menu-item:active {
     transform: none !important;
   }
+}
+
+/*
+ * Schede in sola lettura (utente base, staff sulle proprie schede): i form disabilitati di AntD hanno il testo a
+ * contrasto ~1,7:1 e i dati si leggevano a fatica. Dentro i form il valore resta leggibile; il campo resta
+ * riconoscibile come non modificabile dallo sfondo e dal cursore.
+ */
+:root {
+  --mst-readonly-text: rgba(0, 0, 0, 0.78);
+}
+:root[data-theme='dark'] {
+  --mst-readonly-text: rgba(255, 255, 255, 0.82);
+}
+.ant-form .ant-input[disabled],
+.ant-form .ant-input-affix-wrapper-disabled .ant-input,
+.ant-form .ant-input-number-disabled .ant-input-number-input,
+.ant-form .ant-picker-disabled input,
+.ant-form .ant-select-disabled .ant-select-selection-item,
+.ant-form .ant-select-disabled .ant-select-selection-overflow-item .ant-select-selection-item-content,
+.ant-form .ant-checkbox-wrapper-disabled > span:last-child,
+.ant-form .ant-radio-wrapper-disabled > span:last-child {
+  color: var(--mst-readonly-text);
+  -webkit-text-fill-color: var(--mst-readonly-text);
 }
