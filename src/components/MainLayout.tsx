@@ -62,7 +62,7 @@ function ClubLogo({ compact }: { compact: boolean }) {
 function BrandMark({ compact }: { compact: boolean }) {
   return (
     <div className={`mst-brand ${compact ? 'mst-brand--compact' : ''}`}>
-      <span className="mst-brand-mark" aria-hidden="true">MST</span>
+      <img className="mst-brand-icon" src="/icon.svg" alt="" aria-hidden="true" draggable={false} />
       {!compact && <span className="mst-brand-name">MST Gestionale</span>}
     </div>
   );

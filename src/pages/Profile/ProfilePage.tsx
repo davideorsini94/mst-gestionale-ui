@@ -27,6 +27,8 @@ export default function ProfilePage() {
     const [changingPassword, setChangingPassword] = useState(false);
 
     const currentUser = authService.getUser();
+    // chi gestisce gli utenti modifica anche l'email; gli altri solo nome e cognome (l'email collega il profilo staff)
+    const canManageUsers = authService.hasCapability('CAN_MANAGE_USERS');
     const { mode, setMode, reduceTransparency, setReduceTransparency } = useThemePrefs();
 
     useEffect(() => {
@@ -50,10 +52,15 @@ export default function ProfilePage() {
 
         setSaving(true);
         try {
-            await apiService.put(`/users/${currentUser.uuid}`, values);
+            if (canManageUsers) {
+                const { username: _username, ...data } = values as UserProfile;
+                await apiService.put(`/users/${currentUser.uuid}`, data);
+            } else {
+                await apiService.put('/auth/me', { firstName: values.firstName, lastName: values.lastName });
+            }
             message.success('Profilo aggiornato con successo');
-        } catch (error) {
-            message.error('Errore nel salvataggio');
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Errore nel salvataggio');
         } finally {
             setSaving(false);
         }
@@ -95,8 +102,13 @@ export default function ProfilePage() {
                     <Form.Item name="lastName" label="Cognome">
                         <Input />
                     </Form.Item>
-                    <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Email non valida' }]}>
-                        <Input />
+                    <Form.Item
+                        name="email"
+                        label="Email"
+                        rules={[{ type: 'email', message: 'Email non valida' }]}
+                        extra={canManageUsers ? undefined : "Per cambiare l'email chiedi a un amministratore"}
+                    >
+                        <Input disabled={!canManageUsers} />
                     </Form.Item>
                     <Form.Item style={{ marginBottom: 0 }}>
                         <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving} block={isMobile}>

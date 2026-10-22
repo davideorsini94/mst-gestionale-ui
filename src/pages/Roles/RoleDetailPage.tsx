@@ -182,6 +182,7 @@ export default function RoleDetailPage() {
         <Table
           columns={columns}
           dataSource={dataSource}
+          scroll={{ x: 'max-content' }}
           pagination={false}
           size="small"
         />

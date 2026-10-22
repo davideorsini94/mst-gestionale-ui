@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { apiService } from '../../services/ApiService';
 import { message } from '../../services/notify';
-import { formatEuro, italianStatisticProps } from '../../helpers/format';
+import { formatEuro, italianStatisticProps, euroInputNumberProps } from '../../helpers/format';
 
 const { useBreakpoint } = Grid;
 const { Text, Paragraph } = Typography;
@@ -28,7 +28,7 @@ interface DuplicateGroup {
 }
 
 interface DuplicatesPreview {
-  summary: { groups: number; toRemove: number; withReceipt: number; incomeYearsToRenumber: number[]; archived: number };
+  summary: { groups: number; toRemove: number; withReceipt: number; incomeYears: number[]; archived: number };
   groups: DuplicateGroup[];
   total: number;
 }
@@ -65,19 +65,16 @@ function DuplicatesTab() {
 
   const remove = () => {
     if (!data) return;
-    const { toRemove, withReceipt, incomeYearsToRenumber } = data.summary;
+    const { toRemove, withReceipt } = data.summary;
     modal.confirm({
       title: `Rimuovere ${toRemove.toLocaleString('it-IT')} movimenti duplicati?`,
       content: (
         <div>
           <p>I movimenti vengono spostati in un archivio e si possono ripristinare con "Ripristina archivio".</p>
-          <p>{withReceipt} hanno una ricevuta: i loro PDF vengono eliminati.</p>
-          {incomeYearsToRenumber.length > 0 && (
-            <p>
-              Le ricevute degli anni <strong>{incomeYearsToRenumber.join(', ')}</strong> vengono rinumerate per restare
-              consecutive. Può richiedere qualche minuto.
-            </p>
-          )}
+          <p>
+            {withReceipt} hanno una ricevuta: numero e PDF restano nell'archivio. Le altre ricevute non vengono
+            rinumerate e quei numeri non verranno riassegnati.
+          </p>
         </div>
       ),
       okText: 'Rimuovi duplicati',
@@ -91,8 +88,7 @@ function DuplicatesTab() {
             { expectedCount: toRemove },
             { timeout: 30 * 60 * 1000 },
           );
-          message.success(`${res.removed} duplicati archiviati, ${res.receiptsRegenerated} ricevute rigenerate`);
-          if (res.errors?.length) message.warning(`${res.errors.length} ricevute non rigenerate: vedi i log`);
+          message.success(`${res.removed} duplicati archiviati`);
           await load(1, pageSize);
         } catch (error: any) {
           message.error(error?.response?.data?.message || 'Errore nella rimozione');
@@ -106,7 +102,7 @@ function DuplicatesTab() {
   const restore = () => {
     modal.confirm({
       title: 'Ripristinare tutti i movimenti archiviati?',
-      content: 'I duplicati rimossi tornano tra i movimenti e le ricevute degli anni coinvolti vengono rinumerate.',
+      content: 'I duplicati rimossi tornano tra i movimenti con i loro numeri di ricevuta originali.',
       okText: 'Ripristina',
       cancelText: 'Annulla',
       onOk: async () => {
@@ -490,7 +486,7 @@ function AmountReviewTab() {
               onChange={(v) => setEdited((prev) => ({ ...prev, [i.uuid]: Number(v) }))}
               style={{ width: '100%' }}
               aria-label="Importo corretto"
-              decimalSeparator=","
+              {...euroInputNumberProps}
             />
           ),
         }
@@ -543,8 +539,8 @@ function AmountReviewTab() {
           options={(data?.batches ?? []).map((b) => ({ value: b.batch, label: `${dayjs(b.started.replace(' ', 'T')).format('DD/MM/YYYY HH:mm')} (${b.size} righe)` }))} />
         {status === 'PENDING' && (
           <Space.Compact>
-            <InputNumber value={min} min={0} precision={2} decimalSeparator="," onChange={(v) => { setMin(Number(v ?? 0)); resetPage(); }} aria-label="Importo minimo" addonBefore="da €" style={{ width: 140 }} />
-            <InputNumber value={max} min={0} precision={2} decimalSeparator="," onChange={(v) => { setMax(Number(v ?? 0)); resetPage(); }} aria-label="Importo massimo" addonBefore="a €" style={{ width: 140 }} />
+            <InputNumber value={min} min={0} precision={2} {...euroInputNumberProps} onChange={(v) => { setMin(Number(v ?? 0)); resetPage(); }} aria-label="Importo minimo" addonBefore="da €" style={{ width: 140 }} />
+            <InputNumber value={max} min={0} precision={2} {...euroInputNumberProps} onChange={(v) => { setMax(Number(v ?? 0)); resetPage(); }} aria-label="Importo massimo" addonBefore="a €" style={{ width: 140 }} />
           </Space.Compact>
         )}
         <Input placeholder="Cerca soggetto..." allowClear value={subject} onChange={(e) => { setSubject(e.target.value); resetPage(); }} style={{ width: isMobile ? '100%' : 200 }} />

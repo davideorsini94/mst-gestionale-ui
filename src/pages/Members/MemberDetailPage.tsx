@@ -304,21 +304,21 @@ export default function MemberDetailPage() {
 
       <Form form={form} layout="vertical" onFinish={handleSave}>
         <Row gutter={16}>
-          <Col span={18}>
+          <Col xs={24} sm={24} md={18}>
             {/* Dati Anagrafici */}
             <Card title="Dati Anagrafici" className="mb-4">
               <Row gutter={16}>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="firstName" label="Nome" rules={[{ required: true }]}>
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="lastName" label="Cognome" rules={[{ required: true }]}>
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="gender" label="Sesso">
                     <Select>
                       <Select.Option value="M">Maschio</Select.Option>
@@ -328,29 +328,29 @@ export default function MemberDetailPage() {
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="fiscalCode" label="Codice Fiscale">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="birthDate" label="Data di Nascita">
                     <DatePicker className="w-full" format="DD/MM/YYYY" />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="birthPlace" label="Luogo di Nascita">
                     <Input />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="birthProvince" label="Provincia di Nascita">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="nationality" label="Nazionalità">
                     <Input />
                   </Form.Item>
@@ -361,34 +361,34 @@ export default function MemberDetailPage() {
             {/* Contatti */}
             <Card title="Contatti" className="mb-4">
               <Row gutter={16}>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="email" label="Email">
                     <Input type="email" />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="phone" label="Telefono">
                     <Input />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="address" label="Indirizzo">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={4}>
+                <Col xs={12} sm={12} md={4}>
                   <Form.Item name="city" label="Città">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={4}>
+                <Col xs={12} sm={12} md={4}>
                   <Form.Item name="province" label="Provincia">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={4}>
+                <Col xs={12} sm={12} md={4}>
                   <Form.Item name="postalCode" label="CAP">
                     <Input />
                   </Form.Item>
@@ -396,12 +396,12 @@ export default function MemberDetailPage() {
               </Row>
               <Divider>Contatto di Emergenza</Divider>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="emergencyContact" label="Nome">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="emergencyPhone" label="Telefono">
                     <Input />
                   </Form.Item>
@@ -412,7 +412,7 @@ export default function MemberDetailPage() {
             {/* Tesseramento */}
             <Card title="Tesseramento" className="mb-4">
               <Row gutter={16}>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Form.Item name="memberType" label="Tipo" rules={[{ required: true }]}>
                     <Select>
                       <Select.Option value="ATHLETE">Atleta</Select.Option>
@@ -421,7 +421,7 @@ export default function MemberDetailPage() {
                     </Select>
                   </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Form.Item name="status" label="Stato" rules={[{ required: true }]}>
                     <Select>
                       <Select.Option value="ACTIVE">Attivo</Select.Option>
@@ -430,29 +430,29 @@ export default function MemberDetailPage() {
                     </Select>
                   </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Form.Item name="membershipDate" label="Data Tesseramento">
                     <DatePicker className="w-full" format="DD/MM/YYYY" />
                   </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Form.Item name="membershipExpiry" label="Scadenza Tesseramento">
                     <DatePicker className="w-full" format="DD/MM/YYYY" />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Form.Item name="isCompetitor" label="Agonista" valuePropName="checked">
                     <Switch />
                   </Form.Item>
                 </Col>
-                <Col span={9}>
+                <Col xs={24} sm={12} md={9}>
                   <Form.Item name="fisiCode" label="Codice FISI">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={9}>
+                <Col xs={24} sm={12} md={9}>
                   <Form.Item name="fisCode" label="Codice FIS">
                     <Input />
                   </Form.Item>
@@ -463,12 +463,12 @@ export default function MemberDetailPage() {
             {/* Visita Medica */}
             <Card title="Visita Medica Sportiva" className="mb-4">
               <Row gutter={16}>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="medicalExamExpiry" label="Scadenza">
                     <DatePicker className="w-full" format="DD/MM/YYYY" />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item
                     name="medicalExamCompetitive"
                     label="Tipo Visita"
@@ -492,7 +492,7 @@ export default function MemberDetailPage() {
           </Col>
 
           {/* Sidebar */}
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
             {/* Foto Profilo */}
             <Card title="Foto" className="mb-4">
               <div className="flex flex-col items-center">

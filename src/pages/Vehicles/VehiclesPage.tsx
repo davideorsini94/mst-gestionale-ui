@@ -171,6 +171,7 @@ export default function VehiclesPage() {
       <Table
         columns={columns}
         dataSource={vehicles}
+        scroll={{ x: 'max-content' }}
         rowKey="uuid"
         loading={loading}
         pagination={{
