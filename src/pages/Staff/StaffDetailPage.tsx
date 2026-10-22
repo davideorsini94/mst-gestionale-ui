@@ -489,8 +489,9 @@ export default function StaffDetailPage() {
             <Card title="Contatti" className="mb-4">
               <Row gutter={16}>
                 <Col xs={24} sm={12} md={8}>
-                  <Form.Item name="email" label="Email">
-                    <Input type="email" />
+                  {/* email, ruolo, stato e assunzione: nella propria scheda li cambia solo chi gestisce lo staff (il server li ignorerebbe) */}
+                  <Form.Item name="email" label="Email" extra={canManageStaff ? undefined : 'Solo un amministratore può cambiarla'}>
+                    <Input type="email" disabled={!canManageStaff} />
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12} md={8}>
@@ -536,7 +537,7 @@ export default function StaffDetailPage() {
               <Row gutter={16}>
                 <Col xs={24} sm={12} md={6}>
                   <Form.Item name="staffRole" label="Ruolo" rules={[{ required: true }]}>
-                    <Select>
+                    <Select disabled={!canManageStaff}>
                       <Select.Option value="INSTRUCTOR">Istruttore</Select.Option>
                       <Select.Option value="DRIVER">Autista</Select.Option>
                       <Select.Option value="ADMIN">Amministrativo</Select.Option>
@@ -547,7 +548,7 @@ export default function StaffDetailPage() {
                 </Col>
                 <Col xs={24} sm={12} md={6}>
                   <Form.Item name="status" label="Stato" rules={[{ required: true }]}>
-                    <Select>
+                    <Select disabled={!canManageStaff}>
                       <Select.Option value="ACTIVE">Attivo</Select.Option>
                       <Select.Option value="INACTIVE">Inattivo</Select.Option>
                       <Select.Option value="ON_LEAVE">In Congedo</Select.Option>
@@ -556,7 +557,7 @@ export default function StaffDetailPage() {
                 </Col>
                 <Col xs={24} sm={12} md={6}>
                   <Form.Item name="hireDate" label="Data Assunzione">
-                    <DatePicker className="w-full" format="DD/MM/YYYY" />
+                    <DatePicker className="w-full" format="DD/MM/YYYY" disabled={!canManageStaff} />
                   </Form.Item>
                 </Col>
                 {canManageStaff && (
