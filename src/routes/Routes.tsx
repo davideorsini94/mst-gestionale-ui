@@ -21,6 +21,7 @@ import StatisticsPage from '../pages/Statistics/StatisticsPage';
 import VehiclesPage from '../pages/Vehicles/VehiclesPage';
 import VehicleDetailPage from '../pages/Vehicles/VehicleDetailPage';
 import RemindersPage from '../pages/Reminders/RemindersPage';
+import GuidePage from '../pages/Guide/GuidePage';
 
 // Capability richieste dalle API che ciascuna pagina usa (vedi i controller del backend)
 const guard = (capability: string, element: ReactNode) => (
@@ -42,6 +43,8 @@ export const authenticatedRouter = createHashRouter([
           // la Dashboard senza CAN_VIEW_DASHBOARD mostra solo il benvenuto (gestito nella pagina)
           { index: true, element: <HomePage /> },
           { path: 'profile', element: <ProfilePage /> },
+          // la guida è per tutti: mostra da sola solo gli argomenti permessi al ruolo
+          { path: 'guide', element: <GuidePage /> },
           { path: 'users', element: guard('CAN_VIEW_USERS', <UsersPage />) },
           { path: 'roles', element: guard('CAN_MANAGE_ROLES', <RolesPage />) },
           { path: 'roles/:code', element: guard('CAN_MANAGE_ROLES', <RoleDetailPage />) },

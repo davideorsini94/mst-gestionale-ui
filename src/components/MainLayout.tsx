@@ -20,6 +20,7 @@ import {
   MoonOutlined,
   DesktopOutlined,
   CheckOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { authService } from '../services/AuthService';
 import { useCurrentUser } from '../hooks/useAuth';
@@ -43,6 +44,7 @@ const allMenuItems = [
   { key: '/vehicles', icon: <CarOutlined />, label: 'Veicoli', capability: 'CAN_VIEW_VEHICLES' },
   { key: '/reminders', icon: <BellOutlined />, label: 'Reminder', capability: 'CAN_MANAGE_SETTINGS' },
   { key: '/settings', icon: <SettingOutlined />, label: 'Impostazioni', capability: 'CAN_MANAGE_SETTINGS' },
+  { key: '/guide', icon: <QuestionCircleOutlined />, label: 'Guida', capability: null },
 ];
 
 const themeOptions: { mode: ThemeMode; label: string; icon: React.ReactNode }[] = [
