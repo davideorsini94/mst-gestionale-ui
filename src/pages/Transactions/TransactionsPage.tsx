@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, Select, DatePicker, InputNumber, Space, Tag, Popconfirm, Tooltip, Upload, Alert, Grid, Typography, theme } from 'antd';
 import { message } from '../../services/notify';
-import { PlusOutlined, EditOutlined, DeleteOutlined, FilePdfOutlined, UploadOutlined, ToolOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, FilePdfOutlined, UploadOutlined, ToolOutlined, StopOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { apiService, getApiBaseUrl } from '../../services/ApiService';
 import { authService } from '../../services/AuthService';
 import CategorySelect from '../../components/CategorySelect';
-import { formatEuro } from '../../helpers/format';
+import AnnulledReceiptsModal from './AnnulledReceiptsModal';
+import { formatEuro, euroInputNumberProps } from '../../helpers/format';
 
 const { useBreakpoint } = Grid;
 
@@ -58,6 +59,7 @@ export default function TransactionsPage() {
   const [categoryName, setCategoryName] = useState<string>('');
   const [categoryUuid, setCategoryUuid] = useState<string | undefined>();
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [annulledOpen, setAnnulledOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; updated: number; corrected?: number; errors: { row: number; error: string }[] } | null>(null);
@@ -403,7 +405,8 @@ export default function TransactionsPage() {
 
   // Genera lista anni (da 2020 all'anno corrente + 1)
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: currentYear - 2019 }, (_, i) => currentYear - i);
+  // i movimenti partono dal 2017; un anno in più per quelli già datati nel prossimo
+  const years = Array.from({ length: currentYear + 1 - 2016 }, (_, i) => currentYear + 1 - i);
 
   return (
     <div>
@@ -415,6 +418,9 @@ export default function TransactionsPage() {
               {isMobile ? 'Manutenzione' : 'Manutenzione dati'}
             </Button>
           )}
+          <Button icon={<StopOutlined />} onClick={() => setAnnulledOpen(true)}>
+            {isMobile ? 'Annullate' : 'Ricevute annullate'}
+          </Button>
           {!isMobile && (
             <Button icon={<UploadOutlined />} onClick={() => setImportModalOpen(true)}>
               Importa Excel
@@ -577,10 +583,10 @@ export default function TransactionsPage() {
           </div>
           <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
             <Form.Item name="amount" label="Importo" rules={[{ required: true }]}>
-              <InputNumber min={0} precision={2} decimalSeparator="," suffix="€" className="w-full" />
+              <InputNumber min={0} precision={2} {...euroInputNumberProps} suffix="€" className="w-full" />
             </Form.Item>
             <Form.Item name="originalAmount" label="Importo Originale">
-              <InputNumber min={0} precision={2} decimalSeparator="," suffix="€" className="w-full" />
+              <InputNumber min={0} precision={2} {...euroInputNumberProps} suffix="€" className="w-full" />
             </Form.Item>
           </div>
           <Form.Item name="subject" label="Ditta-Ente-Soggetto">
@@ -715,6 +721,7 @@ export default function TransactionsPage() {
           </div>
         )}
       </Modal>
+      <AnnulledReceiptsModal open={annulledOpen} onClose={() => setAnnulledOpen(false)} years={years} />
     </div>
   );
 }

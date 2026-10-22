@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Button, Divider, List, InputNumber, Tabs, Switch, Alert, Upload, Table, Popconfirm, Space, Tag, Grid, Result } from 'antd';
+import { App, Card, Form, Input, Button, Divider, List, InputNumber, Tabs, Switch, Alert, Upload, Table, Popconfirm, Space, Tag, Grid, Result } from 'antd';
 import { message } from '../../services/notify';
 import { SaveOutlined, SendOutlined, MailOutlined, SettingOutlined, DatabaseOutlined, CloudDownloadOutlined, DeleteOutlined, UploadOutlined, CloudServerOutlined, LockOutlined } from '@ant-design/icons';
 import { apiService, getApiBaseUrl } from '@services/ApiService.ts';
@@ -39,6 +39,8 @@ export default function SettingsPage() {
   const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [adminEmail, setAdminEmail] = useState('');
   const [savingAdminEmail, setSavingAdminEmail] = useState(false);
+  // conferme a tema (Modal.confirm statico resterebbe chiaro)
+  const { modal } = App.useApp();
   const [backups, setBackups] = useState<any[]>([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState<string | null>(null);
@@ -225,14 +227,41 @@ export default function SettingsPage() {
     }
   };
 
+  /** Il ripristino sovrascrive tutto: parte solo dopo una conferma esplicita con il nome del file scelto. */
+  const confirmRestore = (file: File, type: 'database' | 'minio') => {
+    const what = type === 'database' ? 'il database' : 'tutti i file (MinIO)';
+    modal.confirm({
+      title: `Ripristinare ${what}?`,
+      content: (
+        <div>
+          <p>
+            File scelto: <strong>{file.name}</strong> ({formatBytes(file.size)})
+          </p>
+          <p>
+            I dati attuali vengono sostituiti da quelli del backup.
+            {type === 'database'
+              ? ' Prima del ripristino viene creato in automatico un backup di sicurezza del database attuale.'
+              : ' Crea prima un backup dei file se non ne hai uno recente.'}
+          </p>
+        </div>
+      ),
+      okText: 'Ripristina',
+      okButtonProps: { danger: true },
+      cancelText: 'Annulla',
+      onOk: () => handleRestoreBackup(file, type),
+    });
+  };
+
   const handleRestoreBackup = async (file: File, type: 'database' | 'minio') => {
     setRestoringBackup(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
-      await apiService.post(`/settings/restore/${type}`, formData);
-      message.success(`${type === 'database' ? 'Database' : 'MinIO'} ripristinato con successo`);
+      const res = await apiService.post<{ safetyBackup?: string }>(`/settings/restore/${type}`, formData);
+      message.success(`${type === 'database' ? 'Database' : 'File'} ripristinato con successo`);
+      if (res?.safetyBackup) message.info(`Backup di sicurezza del database precedente: ${res.safetyBackup}`);
       message.warning('Ricaricare la pagina per vedere i cambiamenti');
+      loadBackups();
     } catch (error: any) {
       message.error(error?.response?.data?.message || 'Errore nel ripristino');
     } finally {
@@ -572,7 +601,7 @@ export default function SettingsPage() {
                 <Upload
                   accept=".sql"
                   beforeUpload={(file) => {
-                    handleRestoreBackup(file, 'database');
+                    confirmRestore(file, 'database');
                     return false;
                   }}
                   showUploadList={false}
@@ -592,7 +621,7 @@ export default function SettingsPage() {
                 <Upload
                   accept=".tar"
                   beforeUpload={(file) => {
-                    handleRestoreBackup(file, 'minio');
+                    confirmRestore(file, 'minio');
                     return false;
                   }}
                   showUploadList={false}
@@ -685,6 +714,8 @@ export default function SettingsPage() {
       <h1 className="text-xl md:text-2xl font-bold mb-4">Impostazioni</h1>
       <Tabs
         items={tabItems}
+        // l'elenco dei backup si carica quando si apre la scheda (prima restava vuoto fino a "Ricarica")
+        onChange={(key) => key === 'backup' && authService.hasCapability('CAN_MANAGE_BACKUP') && loadBackups()}
         defaultActiveKey="email"
         tabPosition={isMobile ? 'top' : 'top'}
         size={isMobile ? 'small' : 'middle'}

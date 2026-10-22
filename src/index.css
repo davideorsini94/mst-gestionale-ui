@@ -274,19 +274,16 @@ body::before {
   padding-inline: 0;
 }
 
-.mst-brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* icona del club accanto al nome (barra laterale e menu mobile) */
+.mst-brand-icon {
   width: 36px;
   height: 36px;
   flex: none;
-  border-radius: var(--mst-radius-control);
-  background: var(--mst-primary);
-  color: var(--mst-on-primary);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  display: block;
+}
+
+:root[data-theme='dark'] .mst-brand-icon {
+  filter: drop-shadow(0 0 1px rgba(207, 226, 248, 0.55));
 }
 
 /* Stemma del club in basso a sinistra (sidebar e menu mobile) */
@@ -537,11 +534,16 @@ body::before {
   text-align: center;
 }
 
-.mst-login-brand .mst-brand-mark {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--mst-radius-card);
-  font-size: 16px;
+/* icona del club (esagono Milano Ski Team) */
+.mst-login-logo {
+  width: 84px;
+  height: 84px;
+  display: block;
+}
+
+/* in tema scuro il bordo blu dell'esagono si staccherebbe poco dalla card */
+:root[data-theme='dark'] .mst-login-logo {
+  filter: drop-shadow(0 0 1.5px rgba(207, 226, 248, 0.55));
 }
 
 .mst-login-title {
@@ -553,6 +555,22 @@ body::before {
 
 .mst-login-subtitle {
   margin: 0;
+  font-size: 14px;
+  color: var(--mst-text-secondary);
+}
+
+.mst-login-forgot {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.mst-login-forgot .ant-btn {
+  padding-inline: 0;
+}
+
+.mst-login-help {
+  margin: 0 0 16px;
   font-size: 14px;
   color: var(--mst-text-secondary);
 }
@@ -612,15 +630,8 @@ body::before {
 
 /* Responsive table improvements */
 @media (max-width: 768px) {
-  .ant-table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .ant-table {
-    min-width: 600px;
-  }
-
+  /* niente min-width forzata sulle tabelle: con scroll.x di AntD creava due barre di scorrimento annidate e nascondeva
+     le colonne fisse (azioni, "Dettagli") */
   .ant-table-thead>tr>th,
   .ant-table-tbody>tr>td {
     padding: 8px 8px !important;

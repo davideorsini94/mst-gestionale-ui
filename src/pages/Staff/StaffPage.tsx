@@ -229,6 +229,7 @@ export default function StaffPage() {
       <Table
         columns={columns}
         dataSource={staff}
+        scroll={{ x: 'max-content' }}
         rowKey="uuid"
         loading={loading}
         pagination={{

@@ -2,6 +2,7 @@ import { createHashRouter } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import RouteErrorPage from '../components/RouteErrorPage';
 import LoginPage from '../pages/Login/LoginPage';
+import ResetPasswordPage from '../pages/Login/ResetPasswordPage';
 import HomePage from '../pages/Home/HomePage';
 import ProfilePage from '../pages/Profile/ProfilePage';
 import UsersPage from '../pages/Users/UsersPage';
@@ -20,6 +21,8 @@ import VehicleDetailPage from '../pages/Vehicles/VehicleDetailPage';
 import RemindersPage from '../pages/Reminders/RemindersPage';
 
 export const authenticatedRouter = createHashRouter([
+  // link dell'email di recupero aperto mentre si è già dentro l'app
+  { path: '/reset-password', element: <ResetPasswordPage />, errorElement: <RouteErrorPage /> },
   {
     path: '/',
     element: <MainLayout />,
@@ -52,6 +55,7 @@ export const authenticatedRouter = createHashRouter([
 ]);
 
 export const unauthenticatedRouter = createHashRouter([
+  { path: '/reset-password', element: <ResetPasswordPage />, errorElement: <RouteErrorPage /> },
   {
     path: '*',
     element: <LoginPage />,

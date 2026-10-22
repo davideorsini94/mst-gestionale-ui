@@ -371,21 +371,21 @@ export default function StaffDetailPage() {
 
       <Form form={form} layout="vertical" onFinish={handleSave}>
         <Row gutter={16}>
-          <Col span={18}>
+          <Col xs={24} sm={24} md={18}>
             {/* Dati Anagrafici */}
             <Card title="Dati Anagrafici" className="mb-4">
               <Row gutter={16}>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="firstName" label="Nome" rules={[{ required: true }]}>
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="lastName" label="Cognome" rules={[{ required: true }]}>
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="gender" label="Sesso">
                     <Select>
                       <Select.Option value="M">Maschio</Select.Option>
@@ -395,17 +395,17 @@ export default function StaffDetailPage() {
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="fiscalCode" label="Codice Fiscale">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="birthDate" label="Data di Nascita">
                     <DatePicker className="w-full" format="DD/MM/YYYY" />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="birthPlace" label="Luogo di Nascita">
                     <Input />
                   </Form.Item>
@@ -416,29 +416,29 @@ export default function StaffDetailPage() {
             {/* Contatti */}
             <Card title="Contatti" className="mb-4">
               <Row gutter={16}>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="email" label="Email">
                     <Input type="email" />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="phone" label="Telefono">
                     <Input />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="address" label="Indirizzo">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={4}>
+                <Col xs={12} sm={12} md={4}>
                   <Form.Item name="city" label="Città">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={4}>
+                <Col xs={12} sm={12} md={4}>
                   <Form.Item name="postalCode" label="CAP">
                     <Input />
                   </Form.Item>
@@ -446,12 +446,12 @@ export default function StaffDetailPage() {
               </Row>
               <Divider>Contatto di Emergenza</Divider>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="emergencyContact" label="Nome">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="emergencyPhone" label="Telefono">
                     <Input />
                   </Form.Item>
@@ -462,7 +462,7 @@ export default function StaffDetailPage() {
             {/* Ruolo e Stato */}
             <Card title="Ruolo e Stato" className="mb-4">
               <Row gutter={16}>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Form.Item name="staffRole" label="Ruolo" rules={[{ required: true }]}>
                     <Select>
                       <Select.Option value="INSTRUCTOR">Istruttore</Select.Option>
@@ -473,7 +473,7 @@ export default function StaffDetailPage() {
                     </Select>
                   </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Form.Item name="status" label="Stato" rules={[{ required: true }]}>
                     <Select>
                       <Select.Option value="ACTIVE">Attivo</Select.Option>
@@ -482,13 +482,13 @@ export default function StaffDetailPage() {
                     </Select>
                   </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Form.Item name="hireDate" label="Data Assunzione">
                     <DatePicker className="w-full" format="DD/MM/YYYY" />
                   </Form.Item>
                 </Col>
                 {canManageStaff && (
-                  <Col span={6}>
+                  <Col xs={24} sm={12} md={6}>
                     <Form.Item name="linkedUserUuid" label="Utente collegato">
                       <Select allowClear placeholder="Seleziona utente" showSearch optionFilterProp="children" onChange={handleUserChange}>
                         {users.map((user) => (
@@ -506,12 +506,12 @@ export default function StaffDetailPage() {
             {/* Abilitazione Allenatore */}
             <Card title="Abilitazione Allenatore" className="mb-4">
               <Row gutter={16}>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Form.Item name="isCoach" label="Allenatore" valuePropName="checked">
                     <Switch />
                   </Form.Item>
                 </Col>
-                <Col span={9}>
+                <Col xs={24} sm={12} md={9}>
                   <Form.Item name="coachLevel" label="Livello">
                     <Select allowClear>
                       <Select.Option value="I">I° Livello</Select.Option>
@@ -522,7 +522,7 @@ export default function StaffDetailPage() {
                     </Select>
                   </Form.Item>
                 </Col>
-                <Col span={9}>
+                <Col xs={24} sm={12} md={9}>
                   <Form.Item name="coachLicenseExpiry" label="Scadenza Patentino">
                     <DatePicker className="w-full" format="DD/MM/YYYY" />
                   </Form.Item>
@@ -533,7 +533,7 @@ export default function StaffDetailPage() {
             {/* Visita Medica */}
             <Card title="Visita Medica Sportiva" className="mb-4">
               <Row gutter={16}>
-                <Col span={8}>
+                <Col xs={24} sm={12} md={8}>
                   <Form.Item name="medicalExamExpiry" label="Scadenza Visita Medica">
                     <DatePicker className="w-full" format="DD/MM/YYYY" />
                   </Form.Item>
@@ -544,36 +544,36 @@ export default function StaffDetailPage() {
             {/* Qualifiche e Certificazioni */}
             <Card title="Altre Qualifiche e Certificazioni" className="mb-4">
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="drivingLicense" label="Patente">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="drivingLicenseExpiry" label="Scadenza Patente">
                     <DatePicker className="w-full" format="DD/MM/YYYY" />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="skiInstructorLicense" label="Abilitazione Maestro Sci">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="skiInstructorLicenseExpiry" label="Scadenza Abilitazione">
                     <DatePicker className="w-full" format="DD/MM/YYYY" />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="firstAidCertificate" label="Certificato Primo Soccorso">
                     <Input />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={24} md={12}>
                   <Form.Item name="firstAidCertificateExpiry" label="Scadenza Certificato">
                     <DatePicker className="w-full" format="DD/MM/YYYY" />
                   </Form.Item>
@@ -590,7 +590,7 @@ export default function StaffDetailPage() {
           </Col>
 
           {/* Sidebar - Foto e Documenti */}
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
             {/* Foto Profilo */}
             <Card title="Foto Profilo" className="mb-4">
               <div className="flex flex-col items-center">

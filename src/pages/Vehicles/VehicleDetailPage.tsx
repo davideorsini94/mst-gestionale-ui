@@ -144,12 +144,12 @@ export default function VehicleDetailPage() {
       <Form form={form} layout="vertical" onFinish={handleSave}>
         <Card title="Informazioni Generali" className="mb-4">
           <Row gutter={16}>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <Form.Item name="name" label="Nome" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <Form.Item name="type" label="Tipo" rules={[{ required: true }]}>
                 <Select>
                   <Select.Option value="MINIBUS">Pulmino</Select.Option>
@@ -160,36 +160,36 @@ export default function VehicleDetailPage() {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <Form.Item name="licensePlate" label="Targa" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={6}>
+            <Col xs={24} sm={12} md={6}>
               <Form.Item name="brand" label="Marca">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={12} md={6}>
               <Form.Item name="model" label="Modello">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={12} md={6}>
               <Form.Item name="year" label="Anno">
                 <InputNumber min={1900} max={2100} className="w-full" />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={12} md={6}>
               <Form.Item name="seats" label="Posti">
                 <InputNumber min={1} className="w-full" />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={6}>
+            <Col xs={24} sm={12} md={6}>
               <Form.Item name="status" label="Stato" rules={[{ required: true }]}>
                 <Select>
                   <Select.Option value="AVAILABLE">Disponibile</Select.Option>
@@ -199,7 +199,7 @@ export default function VehicleDetailPage() {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={12} md={6}>
               <Form.Item name="fuelType" label="Carburante">
                 <Select>
                   <Select.Option value="DIESEL">Diesel</Select.Option>
@@ -210,12 +210,12 @@ export default function VehicleDetailPage() {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={12} md={6}>
               <Form.Item name="fuelConsumption" label="Consumo (L/100km)">
                 <InputNumber min={0} precision={1} className="w-full" />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={12} md={6}>
               <Form.Item name="assignedStaffUuid" label="Assegnato a">
                 <Select allowClear placeholder="Seleziona membro staff">
                   {staffList.map((staff) => (
@@ -231,17 +231,17 @@ export default function VehicleDetailPage() {
 
         <Card title="Scadenze Documenti" className="mb-4">
           <Row gutter={16}>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <Form.Item name="insuranceExpiry" label="Scadenza Assicurazione">
                 <DatePicker className="w-full" format="DD/MM/YYYY" />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <Form.Item name="inspectionExpiry" label="Scadenza Revisione">
                 <DatePicker className="w-full" format="DD/MM/YYYY" />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <Form.Item name="taxExpiry" label="Scadenza Bollo">
                 <DatePicker className="w-full" format="DD/MM/YYYY" />
               </Form.Item>
@@ -251,17 +251,17 @@ export default function VehicleDetailPage() {
 
         <Card title="Manutenzione" className="mb-4">
           <Row gutter={16}>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <Form.Item name="currentKm" label="Km Attuali">
                 <InputNumber min={0} className="w-full" />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <Form.Item name="lastMaintenanceDate" label="Ultima Manutenzione">
                 <DatePicker className="w-full" format="DD/MM/YYYY" />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={12} md={8}>
               <Form.Item name="nextMaintenanceKm" label="Prossima Manutenzione (Km)">
                 <InputNumber min={0} className="w-full" />
               </Form.Item>
