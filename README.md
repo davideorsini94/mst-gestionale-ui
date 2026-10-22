@@ -1,170 +1,172 @@
-# MST Gestionale — Frontend
+<div align="center">
 
-Interfaccia web del gestionale di una SSD a RL (sci club): tesserati, staff, prima nota
-con ricevute, veicoli, scadenzario e impostazioni. SPA React 19 + TypeScript servita da
-Vite in sviluppo e da nginx in produzione, installabile come PWA.
+<img src="public/icon-192.png" alt="" width="88">
 
-> Da sola non fa niente: tutti i dati arrivano dalle API del repo `mst-gestionale-be`.
-> Senza backend raggiungibile resta la sola schermata di login.
+# MST Gestionale
 
-## Cosa fa
+**Il gestionale web di uno sci club:** atleti e staff, prima nota con ricevute PDF, pulmini e scadenze, promemoria
+automatici, statistiche e backup. Progettato per chi non è un tecnico, su computer e telefono.
 
-- **Login** con username e password. Il token JWT e il profilo utente finiscono in
-  `localStorage` (`mst_token`, `mst_user`); l'app monta un router diverso a seconda che
-  il token ci sia o no, e un 401 su qualsiasi chiamata fa logout automatico.
-- **Menu per capability**: le voci del menu laterale compaiono solo se il ruolo
-  dell'utente ha la capability corrispondente (`CAN_VIEW_MEMBERS`,
-  `CAN_VIEW_TRANSACTIONS`, `CAN_MANAGE_SETTINGS`, …). Su schermi piccoli il menu
-  diventa un drawer.
-- **Dashboard** (`/`): dati da `GET /dashboard?daysAhead=`, con contenuto diverso per
-  admin (totali staff e tesserati, scadenze dei veicoli) e per staff (scadenze
-  personali e mezzi assegnati).
-- **Profilo** (`/profile`): dati da `/auth/me`, aggiornamento del proprio utente e
-  cambio password (dopo il cambio si viene disconnessi).
-- **Utenti** (`/users`) e **Ruoli** (`/roles`, `/roles/:code`): CRUD utenti con
-  assegnazione ruolo, e gestione delle capability per ruolo.
-- **Staff** (`/staff`, `/staff/:uuid`): elenco con ricerca, anagrafica, qualifiche e
-  scadenze, foto profilo con ritaglio prima dell'upload, documenti allegati da
-  caricare e scaricare.
-- **Tesserati** (`/members`, `/members/:uuid`): stessa struttura dello staff, più la
-  selezione multipla con generazione della **lista per la prenotazione hotel**
-  (divisa maschi/femmine, stampabile da una finestra dedicata).
-- **Movimenti** (`/transactions`): tabella entrate/uscite con filtri, creazione e
-  modifica, **import di file Excel o CSV** con esito riga per riga, e apertura della
-  **ricevuta PDF** quando il movimento ne ha una (il token viene passato in query
-  string perché il PDF si apre in una nuova scheda).
-- **Statistiche** (`/statistics`): totali entrate/uscite/saldo, dettaglio per categoria
-  e per mese, filtrabili per intervallo di date e categoria.
-- **Veicoli** (`/vehicles`, `/vehicles/:uuid`): parco mezzi e relative scadenze.
-- **Reminder** (`/reminders`): elenco dei promemoria a schede (tutti, programmati,
-  inviati, falliti), reinvio singolo e comando per forzare subito il controllo delle
-  scadenze.
-- **Impostazioni** (`/settings`): configurazione SMTP ed email amministratore,
-  impostazioni generiche chiave/valore, backup di database e MinIO con elenco,
-  download, ripristino ed eliminazione.
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)
+![Ant Design](https://img.shields.io/badge/Ant%20Design-5-0170FE?logo=antdesign&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)
+![PWA](https://img.shields.io/badge/PWA-installabile-5A0FC8?logo=pwa&logoColor=white)
+
+Backend: [`mst-gestionale-be`](https://github.com/davideorsini94/mst-gestionale-be) · Versione **1.4**
+
+<img src="docs/screenshots/dashboard.png" alt="Dashboard dell'amministratore" width="90%">
+
+<sub>Tutti gli screenshot usano dati di esempio inventati.</sub>
+
+</div>
+
+---
+
+## Il progetto
+
+Uno sci club deve tenere sotto controllo molte cose insieme: tesserati e visite mediche, patentini degli allenatori,
+scadenze dei pulmini, entrate, uscite e ricevute. MST Gestionale, sviluppato per Milano Ski Team, riunisce tutto in
+un'unica app web pensata per amministratori, allenatori e collaboratori, con **permessi per ruolo**: ognuno vede e
+può fare solo quello che gli compete.
+
+Questo repository contiene l'interfaccia: una single-page application React 19 + TypeScript, servita da nginx e
+installabile come app sul telefono. Dati, ricevute, cifratura e promemoria sono nel
+[backend NestJS](https://github.com/davideorsini94/mst-gestionale-be).
+
+## Funzionalità
+
+| | |
+|---|---|
+| **Tesserati e staff** | anagrafiche, codici FISI/FIS, visite mediche, patentini e qualifiche con scadenze evidenziate, foto con ritaglio, documenti allegati |
+| **Lista alberghiera** | dagli atleti selezionati (e dagli allenatori scelti) genera l'elenco per l'albergo, diviso tra atleti e allenatori e per sesso, da copiare o stampare |
+| **Movimenti** | prima nota con filtri e ordinamenti, ricevuta PDF per ogni entrata, archivio delle ricevute annullate, import da Excel/CSV con esito riga per riga |
+| **Manutenzione dati** | pulizia dei duplicati degli import storici e revisione guidata degli importi, con annullamento |
+| **Statistiche** | entrate, uscite e bilancio per periodo e categoria, grafico interattivo per mesi o anni |
+| **Veicoli** | parco mezzi con scadenze di assicurazione, revisione e bollo, assegnazione allo staff |
+| **Promemoria** | stato delle email automatiche di scadenza, reinvio e controllo immediato |
+| **Utenti e ruoli** | account, ruoli personalizzati e 19 permessi assegnabili |
+| **Impostazioni** | server email con invio di prova, backup e ripristino di dati e file |
+| **Guida in linea** | spiegazioni passo passo filtrate sul ruolo di chi legge, con ricerca |
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/members.png" alt="Elenco dei tesserati"></td>
+    <td width="50%"><img src="docs/screenshots/transactions.png" alt="Movimenti"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Tesserati con le visite mediche in scadenza</sub></td>
+    <td align="center"><sub>Prima nota con ricevute PDF</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/statistics-dark.png" alt="Statistiche in tema scuro"></td>
+    <td><img src="docs/screenshots/hotel-list.png" alt="Lista alberghiera"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Statistiche, tema scuro</sub></td>
+    <td align="center"><sub>Lista alberghiera con atleti e allenatori</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/member-detail.png" alt="Scheda di un tesserato"></td>
+    <td><img src="docs/screenshots/guide.png" alt="Guida in linea"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Scheda del tesserato</sub></td>
+    <td align="center"><sub>Guida in linea filtrata per ruolo</sub></td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/screenshots/mobile-dashboard.png" alt="Dashboard su telefono" width="24%">
+  <img src="docs/screenshots/mobile-members.png" alt="Tesserati su telefono" width="24%">
+  <img src="docs/screenshots/mobile-menu.png" alt="Menu su telefono" width="24%">
+</p>
+
+## Scelte di progetto
+
+### Pensato per chi non è un tecnico
+- **Linguaggio semplice** e messaggi d'errore in italiano mostrati così come arrivano dal server ("Esiste già un
+  tesserato con questo codice fiscale"), mai codici tecnici.
+- **Importi all'italiana**: `1.234,56`, `1.000` e `12,5` vengono interpretati correttamente, anche incollando
+  `1,000.50`; calendari e mesi in italiano.
+- **Conferme solo dove servono**, con il focus su "Annulla" per le operazioni irreversibili.
+- **Errori recuperabili**: liste e pagine che non si caricano mostrano "Riprova" invece di sembrare vuote; dopo una
+  sessione scaduta si torna alla pagina in cui si era.
+- **Guida in linea per ruolo**: un utente in sola lettura non legge istruzioni su pulsanti che non vedrà mai.
+
+### Design ispirato ad Apple
+- Materiali in vetro (`backdrop-filter`) per barre e menu, raggi concentrici, tipografia di sistema.
+- **Tema chiaro, scuro o automatico** e opzione **Riduci trasparenza**, salvati sull'account e quindi uguali su
+  tutti i dispositivi; rispetto di `prefers-reduced-motion` e `prefers-reduced-transparency`.
+- Grafico delle statistiche in SVG scritto a mano, con tooltip, navigazione da tastiera e adattamento al tema.
+
+### Mobile e PWA
+- Layout responsive fino a 320 px: menu a scomparsa, filtri raccolti in un pannello, colonne secondarie nascoste.
+- Installabile come app (manifest e icone maskable), service worker con cache legata alla versione della build:
+  ogni rilascio viene caricato al primo cambio di pagina, senza file vecchi in cache.
+
+### Sicurezza lato client
+- **Rotte protette per permesso** (403 dentro il layout, 404 per pagine e schede inesistenti) e permessi
+  aggiornati da `/auth/me` senza dover rientrare.
+- **Nessun token negli URL**: PDF e documenti si aprono come blob scaricati con l'header `Authorization`; i backup
+  con un link monouso rilasciato dal server.
+- Escape di tutti i dati inseriti dagli utenti nelle pagine di stampa.
+- Risposte vecchie ignorate (`useLatestRequest`): cambiando filtro in fretta non compaiono risultati della ricerca
+  precedente.
 
 ## Stack
 
-- React 19.2 + TypeScript 5.9, build con Vite 7
-- Ant Design 5.27 con locale italiano (`antd/locale/it_IT`) e icone `@ant-design/icons`
-- `react-router-dom` 7 in modalità **hash router** (`createHashRouter`)
-- Tailwind CSS 3.4 con `preflight` disattivato, per non entrare in conflitto con antd
-- `axios` per le chiamate HTTP, `dayjs` per le date, `lodash/debounce` per le ricerche,
-  `react-image-crop` per il ritaglio delle foto profilo
-- PWA: `public/manifest.json` e service worker `public/sw.js` con strategia
-  network-first e fallback su cache
-- In produzione: nginx (`nginx.conf`) che serve la SPA e fa da proxy verso il backend
+| Area | Tecnologie |
+|---|---|
+| UI | React 19, TypeScript, Ant Design 5, Tailwind CSS 4 |
+| Routing e dati | React Router 7 (hash router), Axios, TanStack Query |
+| Build | Vite (minificazione e id di build nel service worker) |
+| Date | dayjs con localizzazione italiana |
+| Immagini | `react-image-crop` per il ritaglio delle foto |
+| Produzione | nginx (statici con cache immutabile, gzip, header di sicurezza, proxy di `/api`) |
 
-## Avvio rapido
+```
+src/
+├── components/   layout con menu per permessi, pagine 403/404, ricerca, select ricercabili, ritaglio foto
+├── helpers/      formattazione e lettura degli importi, messaggi d'errore, apertura sicura dei file
+├── hooks/        utente corrente e permessi reattivi, scarto delle risposte superate
+├── pages/        una cartella per area (Tesserati, Movimenti, Statistiche, Guida, …)
+├── services/     client API con gestione della sessione, autenticazione
+└── theme/        palette, token di AntD e variabili CSS per chiaro/scuro
+```
 
-Serve Node.js >= 20.15.0 (`engines` in `package.json`).
+## Avvio in locale
+
+Requisiti: Node.js 20.15+ e il [backend](https://github.com/davideorsini94/mst-gestionale-be) in esecuzione.
 
 ```bash
 npm install
-npm run dev              # dev server Vite, di default su http://localhost:5173
+echo "VITE_API_URL=http://localhost:3000/api" > .env
+npm run dev          # http://localhost:5173
 ```
 
-Altri comandi:
+### Comandi
 
 ```bash
-npm run dev:public       # come dev, ma in ascolto su 0.0.0.0 (utile da mobile)
-npm run build            # bundle di produzione in dist/
-npm run preview          # serve dist/ localmente
-npm run lint             # eslint su src (vedi Note)
+npm run dev       # sviluppo con ricarica automatica
+npm run build     # build di produzione in dist/
+npm run preview   # anteprima della build
+npm run lint      # ESLint
 ```
 
-**Insieme al backend**: avvia prima `mst-gestionale-be` (`npm run start:dev`, in ascolto
-su `:3000` con prefisso `/api`), poi `npm run dev` qui. Con il `.env` di default il
-frontend chiama direttamente `http://localhost:3000/api` — il CORS del backend è aperto,
-quindi non serve altro.
+## Produzione
 
-Build dell'immagine Docker (il `Dockerfile` parte da `nginx:alpine` e copia `dist/`
-già compilata, che non è versionata: il build va fatto prima):
+La build (`dist/`) è servita da un container `nginx:alpine` che fa anche da proxy verso il backend: interfaccia e
+API stanno sullo stesso indirizzo, quindi senza CORS. La configurazione in [`nginx.conf`](nginx.conf) imposta
+`Cache-Control` immutabile per gli asset con hash, nessuna cache per `index.html`, `sw.js` e manifest, gzip, header
+di sicurezza e upload fino a 1,1 GB per il ripristino dei backup.
 
 ```bash
 npm run build
 docker build -t mst-gestionale-ui .
 ```
 
-## Configurazione
+## Autore
 
-Due variabili, lette da Vite al build/dev e quindi prefissate `VITE_`. Nessuna è
-obbligatoria: entrambe hanno un fallback nel codice.
-
-| Variabile | Cosa fa | Fallback |
-|---|---|---|
-| `VITE_API_URL` | base URL delle API in sviluppo, es. `http://localhost:3000/api` | `/api` |
-| `VITE_SOCKET_URL` | URL del server socket.io, es. `http://localhost:3000` | `http://localhost:3000` |
-
-Attenzione: `VITE_API_URL` vale **solo in sviluppo**. In build di produzione
-(`import.meta.env.PROD`) sia `ApiService` sia `AuthService` forzano il path relativo
-`/api`, perché è nginx a inoltrare le richieste al backend:
-
-```
-location /api/ {
-    proxy_pass http://mst-gestionale-be:3000/api/;
-}
-```
-
-Il nome host `mst-gestionale-be` presuppone che i due container stiano sulla stessa rete
-Docker. La SPA usa `try_files $uri $uri/ /index.html`, e le rotte applicative sono
-comunque dietro `#/` per via dell'hash router.
-
-## Struttura del progetto
-
-```
-index.html                  entry HTML, meta PWA e iOS, titolo dell'app
-vite.config.ts              plugin React, alias di import, proxy di sviluppo
-tailwind.config.js          palette custom (primary, menu, success/fail/warn), preflight off
-nginx.conf                  server di produzione + proxy /api/ verso il backend
-Dockerfile                  immagine nginx:alpine che serve dist/
-generate-icons.cjs          script una tantum che genera le icone SVG in public/
-public/
-├── manifest.json           manifest PWA (nome, icone, display standalone)
-└── sw.js                   service worker, cache network-first
-src/
-├── index.tsx               mount React, QueryClientProvider, registrazione service worker
-├── App.tsx                 ConfigProvider antd e scelta del router in base al token
-├── routes/Routes.tsx       hash router autenticato e router di login
-├── components/
-│   ├── MainLayout.tsx      sider/drawer, menu filtrato per capability, header utente
-│   ├── SearchableSelect.tsx select con ricerca lato server e debounce
-│   ├── CategorySelect.tsx  select delle categorie di movimento
-│   └── ImageCropModal.tsx  ritaglio immagine prima dell'upload
-├── services/
-│   ├── ApiService.ts       client axios, Bearer token, logout automatico sul 401
-│   ├── AuthService.ts      login, storage del token, hasCapability()
-│   └── SocketService.ts    wrapper socket.io (non utilizzato, vedi Note)
-└── pages/                  una cartella per area: Login, Home, Profile, Users, Roles,
-                            Staff, Members, Transactions, Statistics, Vehicles,
-                            Reminders, Settings
-```
-
-## Note
-
-- **Il file `.env` è versionato** e contiene solo i due URL di sviluppo verso
-  `localhost:3000`. Nessun segreto: le variabili `VITE_*` finiscono comunque nel bundle
-  e sono pubbliche per definizione.
-- **`SocketService` è codice morto**: non è importato da nessun componente, e lato
-  backend il gateway socket.io non emette nulla. Di conseguenza anche
-  `VITE_SOCKET_URL` e la dipendenza `socket.io-client` sono inerti.
-- **Dipendenze dichiarate e mai importate**: `@mui/x-charts`, `chart.js`,
-  `react-chartjs-2`, `chartjs-plugin-datalabels`, `jotai`, `date-fns`,
-  `@ant-design/v5-patch-for-react-19`. I grafici delle statistiche sono tabelle e
-  `Statistic` di antd, lo stato è tenuto negli `useState` dei componenti.
-  `@tanstack/react-query` è installato e il provider è montato in `index.tsx`, ma
-  nessun componente usa `useQuery`/`useMutation`: tutte le chiamate passano da
-  `apiService` dentro `useEffect`.
-- **`npm run lint` non funziona così com'è**: lo script c'è, ma nel repo non esiste
-  nessun file di configurazione ESLint.
-- **Icone mancanti**: `manifest.json` e `index.html` referenziano `icon-192.png`,
-  `icon-512.png`, `apple-touch-icon.png` e `favicon.svg`, ma `public/` contiene solo
-  `manifest.json` e `sw.js`. `generate-icons.cjs` genera le versioni SVG (non le PNG) e
-  va lanciato a mano con `node generate-icons.cjs`.
-- **Alias non risolti**: `vite.config.ts` e `tsconfig.json` dichiarano `@atoms`,
-  `@models` e `@helpers`, ma quelle cartelle non esistono in `src/`. Gli alias usati
-  davvero sono gli import relativi.
-- Il proxy di sviluppo in `vite.config.ts` punta a `http://mst-gestionale-be:3000` e
-  rimuove il prefisso `/api` dal path: è pensato per l'esecuzione in Docker, non per il
-  `localhost` di tutti i giorni. In locale il percorso che funziona è `VITE_API_URL`.
-- `build.minify` è impostato a `false`: il bundle di produzione non è minificato.
+Progettato e sviluppato da **Davide Orsini** per Milano Ski Team.
