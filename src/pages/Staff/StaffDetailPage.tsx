@@ -16,6 +16,7 @@ import {
   List,
   Popconfirm,
   Avatar,
+  Result,
 } from 'antd';
 import { message } from '../../services/notify';
 import {
@@ -29,8 +30,11 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { apiService } from '../../services/ApiService';
-import { authService } from '../../services/AuthService';
 import ImageCropModal from '../../components/ImageCropModal';
+import { ForbiddenPage, NotFoundPage } from '../../components/StatusPages';
+import { useCapability } from '../../hooks/useAuth';
+import { emptyToNull, getErrorMessage, getErrorStatus } from '../../helpers/errors';
+import { isUuid } from '../../helpers/uuid';
 
 interface FileEntity {
   uuid: string;
@@ -118,22 +122,27 @@ export default function StaffDetailPage() {
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [profileImageBlobUrl, setProfileImageBlobUrl] = useState<string | null>(null);
   const isNew = uuid === 'new';
-  const canManageStaff = authService.hasCapability('CAN_MANAGE_STAFF');
+  const canManageStaff = useCapability('CAN_MANAGE_STAFF');
+  const canViewStaff = useCapability('CAN_VIEW_STAFF');
   // Senza CAN_MANAGE_STAFF si può modificare solo il proprio profilo (PUT /staff/me): salvare la scheda di un
   // collega sovrascriverebbe il proprio profilo con i suoi dati
   const [ownStaffUuid, setOwnStaffUuid] = useState<string | null>(null);
   const canSave = canManageStaff || (!!ownStaffUuid && ownStaffUuid === uuid);
+  /** 'forbidden': scheda di un altro senza CAN_VIEW_STAFF; 'notFound': uuid inesistente; 'error': "Riprova" */
+  const [loadState, setLoadState] = useState<'ok' | 'forbidden' | 'notFound' | 'error'>('ok');
 
   useEffect(() => {
     if (canManageStaff) {
       loadUsers();
-    } else {
+    } else if (canViewStaff) {
       apiService
         .get<{ uuid?: string }>('/staff/me')
         .then((me) => setOwnStaffUuid(me?.uuid ?? null))
         .catch(() => setOwnStaffUuid(null));
     }
-    if (!isNew && uuid) {
+    if (!isNew && !isUuid(uuid)) {
+      setLoadState('notFound');
+    } else if (!isNew && uuid) {
       loadStaff();
     }
     // Cleanup blob URL on unmount
@@ -156,7 +165,24 @@ export default function StaffDetailPage() {
   const loadStaff = async () => {
     setLoading(true);
     try {
-      const data = await apiService.get<Staff>(`/staff/${uuid}`);
+      let data: Staff | null;
+      if (canViewStaff) {
+        data = await apiService.get<Staff>(`/staff/${uuid}`);
+      } else {
+        // senza CAN_VIEW_STAFF si apre solo il proprio profilo, letto da /staff/me
+        const own = await apiService.get<Staff & { found?: boolean }>('/staff/me');
+        if (!own?.uuid || own.uuid !== uuid) {
+          setLoadState('forbidden');
+          return;
+        }
+        setOwnStaffUuid(own.uuid);
+        data = own;
+      }
+      if (!data) {
+        setLoadState('notFound');
+        return;
+      }
+      setLoadState('ok');
       setStaff(data);
       setDocuments(data.documents || []);
       form.setFieldsValue({
@@ -184,7 +210,7 @@ export default function StaffDetailPage() {
         loadProfileImage();
       }
     } catch (error) {
-      message.error('Errore nel caricamento');
+      setLoadState(getErrorStatus(error) === 404 ? 'notFound' : 'error');
     } finally {
       setLoading(false);
     }
@@ -212,6 +238,11 @@ export default function StaffDetailPage() {
 
       const payload = {
         ...values,
+        // email vuota → null (una stringa vuota non è un'email valida per il backend)
+        email: emptyToNull(values.email),
+        // select svuotate con la ✕: il valore diventa undefined e sparirebbe dal JSON (il backend terrebbe il vecchio)
+        ...(canManageStaff ? { linkedUserUuid: values.linkedUserUuid ?? null } : {}),
+        coachLevel: values.coachLevel ?? null,
         birthDate: formatDate(values.birthDate),
         hireDate: formatDate(values.hireDate),
         drivingLicenseExpiry: formatDate(values.drivingLicenseExpiry),
@@ -237,9 +268,9 @@ export default function StaffDetailPage() {
         }
         message.success('Membro staff aggiornato');
       }
-      navigate('/staff');
+      navigate(canViewStaff ? '/staff' : '/');
     } catch (error) {
-      message.error('Errore nel salvataggio');
+      message.error(getErrorMessage(error, 'Errore nel salvataggio del membro staff'));
     } finally {
       setSaving(false);
     }
@@ -278,7 +309,7 @@ export default function StaffDetailPage() {
       message.success('Foto caricata');
       loadStaff();
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Errore nel caricamento della foto';
+      const errorMsg = getErrorMessage(error, 'Errore nel caricamento della foto');
       message.error(errorMsg);
     } finally {
       setUploadingPhoto(false);
@@ -292,7 +323,7 @@ export default function StaffDetailPage() {
       setProfileImageBlobUrl(null);
       loadStaff();
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Errore eliminazione foto';
+      const errorMsg = getErrorMessage(error, 'Errore eliminazione foto');
       message.error(errorMsg);
     }
   };
@@ -310,7 +341,7 @@ export default function StaffDetailPage() {
       message.success('Documento caricato');
       loadStaff();
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Errore nel caricamento del documento';
+      const errorMsg = getErrorMessage(error, 'Errore nel caricamento del documento');
       message.error(errorMsg);
     } finally {
       setUploadingDoc(false);
@@ -334,7 +365,7 @@ export default function StaffDetailPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Errore nel download';
+      const errorMsg = getErrorMessage(error, 'Errore nel download');
       message.error(errorMsg);
     }
   };
@@ -345,10 +376,43 @@ export default function StaffDetailPage() {
       message.success('Documento eliminato');
       loadStaff();
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Errore nella eliminazione';
+      const errorMsg = getErrorMessage(error, 'Errore nella eliminazione');
       message.error(errorMsg);
     }
   };
+
+  if ((isNew && !canManageStaff) || loadState === 'forbidden') {
+    return <ForbiddenPage />;
+  }
+
+  if (loadState === 'notFound') {
+    return (
+      <NotFoundPage
+        title="Membro staff non trovato"
+        subTitle="La scheda non esiste o è stata eliminata."
+        backTo={canViewStaff ? '/staff' : '/'}
+        backLabel={canViewStaff ? 'Torna allo staff' : 'Torna alla Dashboard'}
+      />
+    );
+  }
+
+  if (loadState === 'error' && !loading) {
+    return (
+      <Result
+        status="error"
+        title="Impossibile caricare la scheda"
+        subTitle="Controlla la connessione e riprova."
+        extra={[
+          <Button key="retry" type="primary" onClick={loadStaff}>
+            Riprova
+          </Button>,
+          <Button key="back" onClick={() => navigate(canViewStaff ? '/staff' : '/')}>
+            Indietro
+          </Button>,
+        ]}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -361,7 +425,7 @@ export default function StaffDetailPage() {
   return (
     <div>
       <div className="flex items-center gap-4 mb-4">
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/staff')}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(canViewStaff ? '/staff' : '/')}>
           Indietro
         </Button>
         <h1 className="text-2xl font-bold">
@@ -369,7 +433,15 @@ export default function StaffDetailPage() {
         </h1>
       </div>
 
-      <Form form={form} layout="vertical" onFinish={handleSave}>
+      {/* chi non può salvare (scheda di un collega senza CAN_MANAGE_STAFF) la vede in sola lettura */}
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSave}
+        disabled={!isNew && !canSave}
+        // porta in vista il primo campo con errore (scorrimento immediato: rispetta "riduci movimento")
+        scrollToFirstError={{ block: 'center', focus: true }}
+      >
         <Row gutter={16}>
           <Col xs={24} sm={24} md={18}>
             {/* Dati Anagrafici */}
@@ -600,7 +672,7 @@ export default function StaffDetailPage() {
                   src={profileImageBlobUrl || undefined}
                   className="mb-4"
                 />
-                {!isNew && (
+                {!isNew && canSave && (
                   <div className="flex gap-2">
                     <Upload
                       showUploadList={false}
@@ -640,34 +712,36 @@ export default function StaffDetailPage() {
             {/* Documenti */}
             {!isNew && (
               <Card title="Documenti" className="mb-4">
-                <div className="mb-4">
-                  <Select
-                    value={selectedDocType}
-                    onChange={setSelectedDocType}
-                    className="w-full mb-2"
-                  >
-                    <Select.Option value="MEDICAL_EXAM">Visita Medica</Select.Option>
-                    <Select.Option value="COACH_LICENSE">Patentino Allenatore</Select.Option>
-                    <Select.Option value="DRIVING_LICENSE">Patente</Select.Option>
-                    <Select.Option value="FIRST_AID">Primo Soccorso</Select.Option>
-                    <Select.Option value="OTHER">Altro</Select.Option>
-                  </Select>
-                  <Upload
-                    showUploadList={false}
-                    beforeUpload={(file) => {
-                      handleUploadDocument(file);
-                      return false;
-                    }}
-                  >
-                    <Button
-                      icon={<UploadOutlined />}
-                      loading={uploadingDoc}
-                      className="w-full"
+                {canSave && (
+                  <div className="mb-4">
+                    <Select
+                      value={selectedDocType}
+                      onChange={setSelectedDocType}
+                      className="w-full mb-2"
                     >
-                      Carica Documento
-                    </Button>
-                  </Upload>
-                </div>
+                      <Select.Option value="MEDICAL_EXAM">Visita Medica</Select.Option>
+                      <Select.Option value="COACH_LICENSE">Patentino Allenatore</Select.Option>
+                      <Select.Option value="DRIVING_LICENSE">Patente</Select.Option>
+                      <Select.Option value="FIRST_AID">Primo Soccorso</Select.Option>
+                      <Select.Option value="OTHER">Altro</Select.Option>
+                    </Select>
+                    <Upload
+                      showUploadList={false}
+                      beforeUpload={(file) => {
+                        handleUploadDocument(file);
+                        return false;
+                      }}
+                    >
+                      <Button
+                        icon={<UploadOutlined />}
+                        loading={uploadingDoc}
+                        className="w-full"
+                      >
+                        Carica Documento
+                      </Button>
+                    </Upload>
+                  </div>
+                )}
 
                 <List
                   size="small"
@@ -683,14 +757,20 @@ export default function StaffDetailPage() {
                           icon={<DownloadOutlined />}
                           onClick={() => handleDownloadDocument(doc)}
                           aria-label="Scarica documento"
+                          // il form è disabilitato in sola lettura, ma scaricare resta consentito
+                          disabled={false}
                         />,
-                        <Popconfirm
-                          key="delete"
-                          title="Eliminare il documento?"
-                          onConfirm={() => handleDeleteDocument(doc.uuid)}
-                        >
-                          <Button size="small" danger icon={<DeleteOutlined />} aria-label="Elimina documento" />
-                        </Popconfirm>,
+                        ...(canSave
+                          ? [
+                              <Popconfirm
+                                key="delete"
+                                title="Eliminare il documento?"
+                                onConfirm={() => handleDeleteDocument(doc.uuid)}
+                              >
+                                <Button size="small" danger icon={<DeleteOutlined />} aria-label="Elimina documento" />
+                              </Popconfirm>,
+                            ]
+                          : []),
                       ]}
                     >
                       <List.Item.Meta
@@ -705,17 +785,18 @@ export default function StaffDetailPage() {
           </Col>
         </Row>
 
-        <div className="flex justify-end mt-4">
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            htmlType="submit"
-            loading={saving}
-            disabled={!isNew && !canSave}
-          >
-            Salva
-          </Button>
-        </div>
+        {(isNew || canSave) && (
+          <div className="flex justify-end mt-4">
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              htmlType="submit"
+              loading={saving}
+            >
+              Salva
+            </Button>
+          </div>
+        )}
       </Form>
     </div>
   );

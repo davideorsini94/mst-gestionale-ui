@@ -16,7 +16,8 @@ export const italianStatisticProps = { groupSeparator: '.', decimalSeparator: ',
 
 /**
  * Importo scritto all'italiana → numero. Il punto è il separatore delle migliaia ("1.000" = mille, "1.234,56"),
- * la virgola quello dei decimali; senza virgola un punto seguito da 1-2 cifre è un decimale ("12.5", "12.50").
+ * la virgola quello dei decimali; senza virgola un punto seguito da 1-2 cifre è un decimale ("12.5", "12.50"),
+ * come dopo uno zero ("0.500").
  * Restituisce undefined se il testo non è un importo.
  */
 export function parseItalianAmount(text: string | number | null | undefined): number | undefined {
@@ -26,12 +27,14 @@ export function parseItalianAmount(text: string | number | null | undefined): nu
   if (!s) return undefined;
   const negative = s.startsWith('-');
   if (negative) s = s.slice(1);
+  if (!s) return undefined; // solo "-"
   if (s.includes(',') && s.includes('.') && s.lastIndexOf('.') > s.lastIndexOf(',')) {
     // incollato all'inglese: "1,000.50"
     s = s.replace(/,/g, '');
   } else if (s.includes(',')) {
     s = s.replace(/\./g, '').replace(',', '.');
-  } else if (/^\d{1,3}(\.\d{3})+$/.test(s)) {
+  } else if (/^[1-9]\d{0,2}(\.\d{3})+$/.test(s)) {
+    // "1.000" = mille; "0.500" invece è un decimale (nessuno scrive le migliaia dopo uno zero)
     s = s.replace(/\./g, '');
   }
   if (!/^\d*\.?\d*$/.test(s) || s === '.' ) return undefined;

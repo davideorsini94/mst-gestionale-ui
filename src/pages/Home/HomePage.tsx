@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, List, Tag, Spin, Select, Alert, Button, Grid, theme } from 'antd';
+import { Card, Row, Col, Statistic, List, Tag, Spin, Select, Alert, Button, Grid, Result, theme } from 'antd';
 import {
   TeamOutlined,
   CarOutlined,
@@ -9,7 +9,8 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/ApiService';
-import { authService } from '../../services/AuthService';
+import { useCapability, useCurrentUser } from '../../hooks/useAuth';
+import { getErrorStatus } from '../../helpers/errors';
 
 const { useBreakpoint } = Grid;
 
@@ -66,24 +67,34 @@ type DashboardData = AdminDashboard | StaffDashboard | UserDashboard;
 export default function HomePage() {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
-  const [loading, setLoading] = useState(true);
+  const canViewDashboard = useCapability('CAN_VIEW_DASHBOARD');
+  const [loading, setLoading] = useState(canViewDashboard);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  // errore di caricamento (non di permessi): si mostra con "Riprova", non come "utente base"
+  const [loadError, setLoadError] = useState(false);
   const [expiryDays, setExpiryDays] = useState(30);
-  const user = authService.getUser();
+  const user = useCurrentUser();
   const navigate = useNavigate();
   const { token } = theme.useToken();
 
   useEffect(() => {
-    loadData();
-  }, [expiryDays]);
+    // senza CAN_VIEW_DASHBOARD l'API risponderebbe 403: si mostra direttamente il benvenuto
+    if (canViewDashboard) {
+      loadData();
+    } else {
+      setLoading(false);
+    }
+  }, [expiryDays, canViewDashboard]);
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const data = await apiService.get<DashboardData>(`/dashboard?daysAhead=${expiryDays}`);
       setDashboard(data);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      if (getErrorStatus(error) !== 403) setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -93,6 +104,24 @@ export default function HomePage() {
     return (
       <div className="flex justify-center items-center h-64">
         <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+        <Result
+          status="error"
+          title="Impossibile caricare la dashboard"
+          subTitle="Controlla la connessione e riprova."
+          extra={
+            <Button type="primary" onClick={loadData}>
+              Riprova
+            </Button>
+          }
+        />
       </div>
     );
   }

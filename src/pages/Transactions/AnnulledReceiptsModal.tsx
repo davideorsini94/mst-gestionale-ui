@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Button, Modal, Select, Table, Tag, Typography } from 'antd';
 import { FilePdfOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { apiService, getApiBaseUrl } from '../../services/ApiService';
-import { authService } from '../../services/AuthService';
+import { apiService } from '../../services/ApiService';
 import { formatEuro } from '../../helpers/format';
+import { getErrorMessage } from '../../helpers/errors';
+import { openProtectedFile } from '../../helpers/openFile';
+import { useCapability } from '../../hooks/useAuth';
 import { message } from '../../services/notify';
 
 interface AnnulledReceipt {
@@ -28,7 +30,7 @@ export default function AnnulledReceiptsModal({ open, onClose, years }: { open: 
   const [year, setYear] = useState<number | undefined>(undefined);
   const [rows, setRows] = useState<AnnulledReceipt[]>([]);
   const [loading, setLoading] = useState(false);
-  const canDownload = authService.hasCapability('CAN_MANAGE_TRANSACTIONS');
+  const canDownload = useCapability('CAN_MANAGE_TRANSACTIONS');
 
   useEffect(() => {
     if (!open) return;
@@ -40,12 +42,12 @@ export default function AnnulledReceiptsModal({ open, onClose, years }: { open: 
       .finally(() => setLoading(false));
   }, [open, year]);
 
-  const openPdf = (uuid: string) => {
-    const token = authService.getToken();
-    window.open(
-      `${getApiBaseUrl()}/transactions/receipts/annulled/${uuid}/pdf?token=${encodeURIComponent(token ?? '')}`,
-      '_blank',
-    );
+  // PDF scaricato con l'header Authorization (niente token nell'URL e quindi nei log del server)
+  const openPdf = (r: AnnulledReceipt) => {
+    openProtectedFile(
+      `/transactions/receipts/annulled/${r.uuid}/pdf`,
+      `ricevuta-annullata-${r.receiptNumber}-${r.receiptYear}.pdf`,
+    ).catch((error) => message.error(getErrorMessage(error, 'Impossibile aprire il PDF')));
   };
 
   return (
@@ -68,17 +70,19 @@ export default function AnnulledReceiptsModal({ open, onClose, years }: { open: 
         size="small"
         loading={loading}
         dataSource={rows}
-        scroll={{ x: 'max-content' }}
+        // il motivo va a capo: con max-content la colonna PDF finiva fuori dalla finestra anche su desktop
+        scroll={{ x: 820 }}
         pagination={{ pageSize: 10, size: 'small', hideOnSinglePage: true, showSizeChanger: false }}
         locale={{ emptyText: 'Nessuna ricevuta annullata' }}
         columns={[
           { title: 'N°', key: 'n', render: (_, r) => `${r.receiptNumber}/${r.receiptYear}`, width: 90 },
           { title: 'Data', dataIndex: 'date', render: (d: string | null) => (d ? dayjs(d).format('DD/MM/YYYY') : '-'), width: 105 },
-          { title: 'Soggetto', dataIndex: 'subject', render: (v: string | null) => v || '-' },
+          { title: 'Soggetto', dataIndex: 'subject', width: 170, render: (v: string | null) => v || '-' },
           { title: 'Importo', dataIndex: 'amount', align: 'right' as const, render: (v: number | null) => (v === null ? '-' : formatEuro(v)), width: 120 },
           {
             title: 'Motivo',
             key: 'reason',
+            width: 260,
             render: (_, r) => (
               <span>
                 <Tag color={r.source === 'duplicato' ? 'default' : 'orange'}>{r.source === 'duplicato' ? 'Duplicato' : 'Annullata'}</Tag>
@@ -90,9 +94,10 @@ export default function AnnulledReceiptsModal({ open, onClose, years }: { open: 
             title: 'PDF',
             key: 'pdf',
             width: 70,
+            fixed: 'right' as const,
             render: (_, r) =>
               r.hasPdf && canDownload ? (
-                <Button size="small" icon={<FilePdfOutlined />} onClick={() => openPdf(r.uuid)} aria-label="Apri PDF" />
+                <Button size="small" icon={<FilePdfOutlined />} onClick={() => openPdf(r)} aria-label={`Apri PDF della ricevuta ${r.receiptNumber}/${r.receiptYear}`} />
               ) : (
                 '-'
               ),

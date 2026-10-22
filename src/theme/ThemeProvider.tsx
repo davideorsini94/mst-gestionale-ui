@@ -104,14 +104,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyToDocument(resolved, prefs.reduceTransparency);
   }, [resolved, prefs.reduceTransparency]);
 
-  // All'avvio (se autenticato) legge le preferenze dell'utente dal server.
+  // All'avvio (se autenticato) legge dal server preferenze e permessi dell'utente.
   useEffect(() => {
     if (!authService.isAuthenticated()) return;
     let cancelled = false;
     apiService
       .get<User>('/auth/me')
       .then((me) => {
-        if (cancelled || changedLocally.current || !hasPreferences(me?.preferences)) return;
+        if (cancelled) return;
+        // ruolo e capability aggiornati (cambiati da un amministratore dopo il login)
+        authService.syncFromMe(me);
+        if (changedLocally.current || !hasPreferences(me?.preferences)) return;
         const next = normalizePreferences(me.preferences, prefsRef.current);
         prefsRef.current = next;
         writeStoredPreferences(next);

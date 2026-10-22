@@ -11,11 +11,16 @@ import {
   Row,
   Col,
   Spin,
+  Result,
 } from 'antd';
 import { message } from '../../services/notify';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { apiService } from '../../services/ApiService';
+import { ForbiddenPage, NotFoundPage } from '../../components/StatusPages';
+import { useCapability } from '../../hooks/useAuth';
+import { getErrorMessage, getErrorStatus } from '../../helpers/errors';
+import { isUuid } from '../../helpers/uuid';
 
 interface Vehicle {
   uuid?: string;
@@ -53,10 +58,17 @@ export default function VehicleDetailPage() {
   const [saving, setSaving] = useState(false);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const isNew = uuid === 'new';
+  const canManage = useCapability('CAN_MANAGE_VEHICLES');
+  const canViewStaff = useCapability('CAN_VIEW_STAFF');
+  /** 'notFound': uuid inesistente → niente form vuoto salvabile; 'error': caricamento fallito → "Riprova" */
+  const [loadState, setLoadState] = useState<'ok' | 'notFound' | 'error'>('ok');
 
   useEffect(() => {
-    loadStaffList();
-    if (!isNew && uuid) {
+    // l'elenco dello staff (per "Assegnato a") richiede CAN_VIEW_STAFF
+    if (canViewStaff) loadStaffList();
+    if (!isNew && !isUuid(uuid)) {
+      setLoadState('notFound');
+    } else if (!isNew && uuid) {
       loadVehicle();
     }
   }, [uuid]);
@@ -73,7 +85,13 @@ export default function VehicleDetailPage() {
   const loadVehicle = async () => {
     setLoading(true);
     try {
-      const data = await apiService.get<Vehicle>(`/vehicles/${uuid}`);
+      const data = await apiService.get<Vehicle | null>(`/vehicles/${uuid}`);
+      // il backend risponde null (200) per un veicolo inesistente
+      if (!data) {
+        setLoadState('notFound');
+        return;
+      }
+      setLoadState('ok');
       form.setFieldsValue({
         ...data,
         insuranceExpiry: data.insuranceExpiry ? dayjs(data.insuranceExpiry) : null,
@@ -82,7 +100,7 @@ export default function VehicleDetailPage() {
         lastMaintenanceDate: data.lastMaintenanceDate ? dayjs(data.lastMaintenanceDate) : null,
       });
     } catch (error) {
-      message.error('Errore nel caricamento');
+      setLoadState(getErrorStatus(error) === 404 ? 'notFound' : 'error');
     } finally {
       setLoading(false);
     }
@@ -93,6 +111,8 @@ export default function VehicleDetailPage() {
     try {
       const payload = {
         ...values,
+        // "Assegnato a" svuotato con la ✕: senza null esplicito il campo sparirebbe dal JSON e resterebbe il vecchio
+        assignedStaffUuid: values.assignedStaffUuid ?? null,
         insuranceExpiry: values.insuranceExpiry
           ? (values.insuranceExpiry as dayjs.Dayjs).format('YYYY-MM-DD')
           : null,
@@ -116,11 +136,44 @@ export default function VehicleDetailPage() {
       }
       navigate('/vehicles');
     } catch (error) {
-      message.error('Errore nel salvataggio');
+      message.error(getErrorMessage(error, 'Errore nel salvataggio del veicolo'));
     } finally {
       setSaving(false);
     }
   };
+
+  if (isNew && !canManage) {
+    return <ForbiddenPage />;
+  }
+
+  if (loadState === 'notFound') {
+    return (
+      <NotFoundPage
+        title="Veicolo non trovato"
+        subTitle="Il veicolo non esiste o è stato eliminato."
+        backTo="/vehicles"
+        backLabel="Torna ai veicoli"
+      />
+    );
+  }
+
+  if (loadState === 'error' && !loading) {
+    return (
+      <Result
+        status="error"
+        title="Impossibile caricare il veicolo"
+        subTitle="Controlla la connessione e riprova."
+        extra={[
+          <Button key="retry" type="primary" onClick={loadVehicle}>
+            Riprova
+          </Button>,
+          <Button key="back" onClick={() => navigate('/vehicles')}>
+            Torna ai veicoli
+          </Button>,
+        ]}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -141,7 +194,15 @@ export default function VehicleDetailPage() {
         </h1>
       </div>
 
-      <Form form={form} layout="vertical" onFinish={handleSave}>
+      {/* senza CAN_MANAGE_VEHICLES la scheda è in sola lettura */}
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSave}
+        disabled={!canManage}
+        // porta in vista il primo campo con errore (scorrimento immediato: rispetta "riduci movimento")
+        scrollToFirstError={{ block: 'center', focus: true }}
+      >
         <Card title="Informazioni Generali" className="mb-4">
           <Row gutter={16}>
             <Col xs={24} sm={12} md={8}>
@@ -275,16 +336,18 @@ export default function VehicleDetailPage() {
           </Form.Item>
         </Card>
 
-        <div className="flex justify-end">
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            htmlType="submit"
-            loading={saving}
-          >
-            Salva
-          </Button>
-        </div>
+        {canManage && (
+          <div className="flex justify-end">
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              htmlType="submit"
+              loading={saving}
+            >
+              Salva
+            </Button>
+          </div>
+        )}
       </Form>
     </div>
   );

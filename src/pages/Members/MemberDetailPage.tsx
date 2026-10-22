@@ -16,6 +16,7 @@ import {
   List,
   Popconfirm,
   Avatar,
+  Result,
 } from 'antd';
 import { message } from '../../services/notify';
 import {
@@ -30,6 +31,10 @@ import {
 import dayjs from 'dayjs';
 import { apiService } from '../../services/ApiService';
 import ImageCropModal from '../../components/ImageCropModal';
+import { ForbiddenPage, NotFoundPage } from '../../components/StatusPages';
+import { useCapability } from '../../hooks/useAuth';
+import { emptyToNull, getErrorMessage, getErrorStatus } from '../../helpers/errors';
+import { isUuid } from '../../helpers/uuid';
 
 interface Member {
   uuid?: string;
@@ -108,9 +113,14 @@ export default function MemberDetailPage() {
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [profileImageBlobUrl, setProfileImageBlobUrl] = useState<string | null>(null);
   const isNew = uuid === 'new';
+  const canManage = useCapability('CAN_MANAGE_MEMBERS');
+  /** 'notFound': uuid inesistente → niente form vuoto salvabile; 'error': caricamento fallito → "Riprova" */
+  const [loadState, setLoadState] = useState<'ok' | 'notFound' | 'error'>('ok');
 
   useEffect(() => {
-    if (!isNew && uuid) {
+    if (!isNew && !isUuid(uuid)) {
+      setLoadState('notFound');
+    } else if (!isNew && uuid) {
       loadMember();
     }
     // Cleanup blob URL on unmount
@@ -125,6 +135,11 @@ export default function MemberDetailPage() {
     setLoading(true);
     try {
       const data = await apiService.get<Member>(`/members/${uuid}`);
+      if (!data) {
+        setLoadState('notFound');
+        return;
+      }
+      setLoadState('ok');
       setMember(data);
       setDocuments(data.documents || []);
       form.setFieldsValue({
@@ -139,7 +154,7 @@ export default function MemberDetailPage() {
         loadProfileImage();
       }
     } catch (error) {
-      message.error('Errore nel caricamento');
+      setLoadState(getErrorStatus(error) === 404 ? 'notFound' : 'error');
     } finally {
       setLoading(false);
     }
@@ -164,6 +179,8 @@ export default function MemberDetailPage() {
     try {
       const payload = {
         ...values,
+        // email vuota → null: il backend la tratta come "nessuna email" (una stringa vuota non è valida)
+        email: emptyToNull(values.email),
         birthDate: values.birthDate
           ? (values.birthDate as dayjs.Dayjs).format('YYYY-MM-DD')
           : null,
@@ -187,7 +204,7 @@ export default function MemberDetailPage() {
       }
       navigate('/members');
     } catch (error) {
-      message.error('Errore nel salvataggio');
+      message.error(getErrorMessage(error, 'Errore nel salvataggio del tesserato'));
     } finally {
       setSaving(false);
     }
@@ -206,7 +223,7 @@ export default function MemberDetailPage() {
       message.success('Documento caricato');
       loadMember();
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Errore nel caricamento del documento';
+      const errorMsg = getErrorMessage(error, 'Errore nel caricamento del documento');
       message.error(errorMsg);
     } finally {
       setUploadingDoc(false);
@@ -232,7 +249,7 @@ export default function MemberDetailPage() {
       message.success('Foto caricata');
       loadMember();
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Errore nel caricamento della foto';
+      const errorMsg = getErrorMessage(error, 'Errore nel caricamento della foto');
       message.error(errorMsg);
     } finally {
       setUploadingPhoto(false);
@@ -246,7 +263,7 @@ export default function MemberDetailPage() {
       setProfileImageBlobUrl(null);
       loadMember();
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Errore eliminazione foto';
+      const errorMsg = getErrorMessage(error, 'Errore eliminazione foto');
       message.error(errorMsg);
     }
   };
@@ -267,7 +284,7 @@ export default function MemberDetailPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Errore nel download';
+      const errorMsg = getErrorMessage(error, 'Errore nel download');
       message.error(errorMsg);
     }
   };
@@ -278,10 +295,43 @@ export default function MemberDetailPage() {
       message.success('Documento eliminato');
       loadMember();
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Errore nella eliminazione';
+      const errorMsg = getErrorMessage(error, 'Errore nella eliminazione');
       message.error(errorMsg);
     }
   };
+
+  if (isNew && !canManage) {
+    return <ForbiddenPage />;
+  }
+
+  if (loadState === 'notFound') {
+    return (
+      <NotFoundPage
+        title="Tesserato non trovato"
+        subTitle="Il tesserato non esiste o è stato eliminato."
+        backTo="/members"
+        backLabel="Torna ai tesserati"
+      />
+    );
+  }
+
+  if (loadState === 'error' && !loading) {
+    return (
+      <Result
+        status="error"
+        title="Impossibile caricare il tesserato"
+        subTitle="Controlla la connessione e riprova."
+        extra={[
+          <Button key="retry" type="primary" onClick={loadMember}>
+            Riprova
+          </Button>,
+          <Button key="back" onClick={() => navigate('/members')}>
+            Torna ai tesserati
+          </Button>,
+        ]}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -302,7 +352,15 @@ export default function MemberDetailPage() {
         </h1>
       </div>
 
-      <Form form={form} layout="vertical" onFinish={handleSave}>
+      {/* senza CAN_MANAGE_MEMBERS la scheda è in sola lettura */}
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSave}
+        disabled={!canManage}
+        // porta in vista il primo campo con errore (scorrimento immediato: rispetta "riduci movimento")
+        scrollToFirstError={{ block: 'center', focus: true }}
+      >
         <Row gutter={16}>
           <Col xs={24} sm={24} md={18}>
             {/* Dati Anagrafici */}
@@ -502,7 +560,7 @@ export default function MemberDetailPage() {
                   src={profileImageBlobUrl || undefined}
                   className="mb-4"
                 />
-                {!isNew && (
+                {!isNew && canManage && (
                   <div className="flex gap-2">
                     <Upload
                       showUploadList={false}
@@ -542,35 +600,37 @@ export default function MemberDetailPage() {
             {/* Documenti */}
             {!isNew && (
               <Card title="Documenti" className="mb-4">
-                <div className="mb-4">
-                  <Select
-                    value={selectedDocType}
-                    onChange={setSelectedDocType}
-                    className="w-full mb-2"
-                  >
-                    <Select.Option value="MEDICAL_EXAM">Visita Medica</Select.Option>
-                    <Select.Option value="IDENTITY_DOCUMENT">Documento Identità</Select.Option>
-                    <Select.Option value="FISI_CARD">Tessera FISI</Select.Option>
-                    <Select.Option value="FIS_CARD">Tessera FIS</Select.Option>
-                    <Select.Option value="PHOTO">Foto</Select.Option>
-                    <Select.Option value="OTHER">Altro</Select.Option>
-                  </Select>
-                  <Upload
-                    showUploadList={false}
-                    beforeUpload={(file) => {
-                      handleUploadDocument(file, selectedDocType);
-                      return false;
-                    }}
-                  >
-                    <Button
-                      icon={<UploadOutlined />}
-                      loading={uploadingDoc}
-                      className="w-full"
+                {canManage && (
+                  <div className="mb-4">
+                    <Select
+                      value={selectedDocType}
+                      onChange={setSelectedDocType}
+                      className="w-full mb-2"
                     >
-                      Carica Documento
-                    </Button>
-                  </Upload>
-                </div>
+                      <Select.Option value="MEDICAL_EXAM">Visita Medica</Select.Option>
+                      <Select.Option value="IDENTITY_DOCUMENT">Documento Identità</Select.Option>
+                      <Select.Option value="FISI_CARD">Tessera FISI</Select.Option>
+                      <Select.Option value="FIS_CARD">Tessera FIS</Select.Option>
+                      <Select.Option value="PHOTO">Foto</Select.Option>
+                      <Select.Option value="OTHER">Altro</Select.Option>
+                    </Select>
+                    <Upload
+                      showUploadList={false}
+                      beforeUpload={(file) => {
+                        handleUploadDocument(file, selectedDocType);
+                        return false;
+                      }}
+                    >
+                      <Button
+                        icon={<UploadOutlined />}
+                        loading={uploadingDoc}
+                        className="w-full"
+                      >
+                        Carica Documento
+                      </Button>
+                    </Upload>
+                  </div>
+                )}
 
                 <List
                   size="small"
@@ -586,14 +646,20 @@ export default function MemberDetailPage() {
                           icon={<DownloadOutlined />}
                           onClick={() => handleDownloadDocument(doc)}
                           aria-label="Scarica documento"
+                          // il form è disabilitato in sola lettura, ma scaricare resta consentito
+                          disabled={false}
                         />,
-                        <Popconfirm
-                          key="delete"
-                          title="Eliminare il documento?"
-                          onConfirm={() => handleDeleteDocument(doc.uuid)}
-                        >
-                          <Button size="small" danger icon={<DeleteOutlined />} aria-label="Elimina documento" />
-                        </Popconfirm>,
+                        ...(canManage
+                          ? [
+                              <Popconfirm
+                                key="delete"
+                                title="Eliminare il documento?"
+                                onConfirm={() => handleDeleteDocument(doc.uuid)}
+                              >
+                                <Button size="small" danger icon={<DeleteOutlined />} aria-label="Elimina documento" />
+                              </Popconfirm>,
+                            ]
+                          : []),
                       ]}
                     >
                       <List.Item.Meta
@@ -608,16 +674,18 @@ export default function MemberDetailPage() {
           </Col>
         </Row>
 
-        <div className="flex justify-end mt-4">
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            htmlType="submit"
-            loading={saving}
-          >
-            Salva
-          </Button>
-        </div>
+        {canManage && (
+          <div className="flex justify-end mt-4">
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              htmlType="submit"
+              loading={saving}
+            >
+              Salva
+            </Button>
+          </div>
+        )}
       </Form>
     </div>
   );

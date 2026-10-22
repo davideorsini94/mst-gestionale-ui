@@ -12,6 +12,7 @@ import {
 import { message } from '../../services/notify';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { apiService } from '../../services/ApiService';
+import { getErrorMessage } from '../../helpers/errors';
 
 interface Capability {
   uuid: string;
@@ -62,7 +63,7 @@ export default function RolesPage() {
       setEditingRole(null);
       loadData();
     } catch (error) {
-      message.error('Errore nel salvataggio');
+      message.error(getErrorMessage(error, 'Errore nel salvataggio del ruolo'));
     }
   };
 
@@ -72,7 +73,7 @@ export default function RolesPage() {
       message.success('Ruolo eliminato');
       loadData();
     } catch (error) {
-      message.error('Errore nella cancellazione');
+      message.error(getErrorMessage(error, "Errore nell'eliminazione del ruolo"));
     }
   };
 
@@ -141,6 +142,10 @@ export default function RolesPage() {
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
+        okText="Salva"
+        cancelText="Annulla"
+        // il form esiste anche a modale chiusa: openModal() lo riempie prima di aprirla
+        forceRender
       >
         <Form form={form} layout="vertical" onFinish={handleSave}>
           <Form.Item name="code" label="Codice" rules={[{ required: true }]}>

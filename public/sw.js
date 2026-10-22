@@ -8,7 +8,8 @@
  *  - tutto il resto passa direttamente alla rete;
  *  - all'attivazione elimina TUTTE le altre cache (le vecchie contenevano /api).
  */
-const CACHE_NAME = 'mst-gestionale-v3';
+// il segnaposto nel nome viene sostituito a ogni build (vite.config.ts → swBuildId): nuovo nome = vecchie cache eliminate
+const CACHE_NAME = 'mst-gestionale-__BUILD_ID__';
 
 /** Asset tenuti in cache: oltre questo numero si eliminano i più vecchi (ogni deploy aggiunge nuovi file). */
 const MAX_ENTRIES = 60;

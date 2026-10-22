@@ -3,7 +3,9 @@ import { Table, Button, Modal, Form, Input, Select, Space, Popconfirm, Tag, Swit
 import { message } from '../../services/notify';
 import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined } from '@ant-design/icons';
 import { apiService } from '../../services/ApiService';
-import { authService } from '../../services/AuthService';
+import { useCapability, useCurrentUser } from '../../hooks/useAuth';
+import { emptyToNull, getErrorMessage } from '../../helpers/errors';
+import { LoadErrorEmpty } from '../../components/StatusPages';
 
 const { useBreakpoint } = Grid;
 
@@ -27,6 +29,7 @@ export default function UsersPage() {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [users, setUsers] = useState<User[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
@@ -37,8 +40,9 @@ export default function UsersPage() {
   const [passwordForm] = Form.useForm();
   const [changingPassword, setChangingPassword] = useState(false);
 
-  const currentUser = authService.getUser();
-  const canViewUsers = authService.hasCapability('CAN_VIEW_USERS');
+  const currentUser = useCurrentUser();
+  // vedere la pagina richiede CAN_VIEW_USERS (rotta protetta); creare, modificare ed eliminare CAN_MANAGE_USERS
+  const canManageUsers = useCapability('CAN_MANAGE_USERS');
 
   useEffect(() => {
     loadUsers(1, 10);
@@ -58,10 +62,12 @@ export default function UsersPage() {
         loadUsers(Math.max(1, Math.ceil(total / pageSize)), pageSize);
         return;
       }
+      setLoadError(false);
       setUsers(data);
       setPagination({ current: page, pageSize, total });
     } catch (error) {
-      message.error('Errore nel caricamento dati');
+      setLoadError(true);
+      message.error('Errore nel caricamento degli utenti');
     } finally {
       setLoading(false);
     }
@@ -79,7 +85,9 @@ export default function UsersPage() {
 
   const loadData = () => loadUsers(pagination.current, pagination.pageSize);
 
-  const handleSave = async (values: Partial<User> & { password?: string }) => {
+  const handleSave = async (formValues: Partial<User> & { password?: string }) => {
+    // email vuota → null (una stringa vuota non è un'email valida per il backend)
+    const values = { ...formValues, email: emptyToNull(formValues.email) };
     try {
       if (editingUser) {
         await apiService.put(`/users/${editingUser.uuid}`, values);
@@ -93,7 +101,7 @@ export default function UsersPage() {
       setEditingUser(null);
       loadData();
     } catch (error) {
-      message.error('Errore nel salvataggio');
+      message.error(getErrorMessage(error, "Errore nel salvataggio dell'utente"));
     }
   };
 
@@ -103,7 +111,7 @@ export default function UsersPage() {
       message.success('Utente eliminato');
       loadData();
     } catch (error) {
-      message.error('Errore nella cancellazione');
+      message.error(getErrorMessage(error, "Errore nell'eliminazione dell'utente"));
     }
   };
 
@@ -136,7 +144,7 @@ export default function UsersPage() {
       passwordForm.resetFields();
       setEditingUser(null);
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.message || 'Errore nel cambio password';
+      const errorMessage = getErrorMessage(error, 'Errore nel cambio password');
       message.error(errorMessage);
     } finally {
       setChangingPassword(false);
@@ -169,11 +177,11 @@ export default function UsersPage() {
     {
       title: 'Azioni',
       key: 'actions',
-      width: isMobile ? 100 : (canViewUsers ? 180 : 120),
+      width: isMobile ? 100 : (canManageUsers ? 180 : 120),
       render: (_: unknown, record: User) => {
-        const canEdit = canViewUsers || record.uuid === currentUser?.uuid;
+        const canEdit = canManageUsers;
         const canChangePassword = record.uuid === currentUser?.uuid;
-        const canDelete = canViewUsers && record.uuid !== currentUser?.uuid;
+        const canDelete = canManageUsers && record.uuid !== currentUser?.uuid;
 
         return (
           <Space size="small">
@@ -198,7 +206,7 @@ export default function UsersPage() {
     <div>
       <div className={`flex ${isMobile ? 'flex-col gap-2' : 'justify-between items-center'} mb-4`}>
         <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 'bold', margin: 0 }}>Utenti</h1>
-        {canViewUsers && (
+        {canManageUsers && (
           <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()} block={isMobile}>
             {isMobile ? 'Nuovo' : 'Nuovo Utente'}
           </Button>
@@ -208,6 +216,7 @@ export default function UsersPage() {
       <Table
         columns={columns}
         dataSource={users}
+        locale={loadError ? { emptyText: <LoadErrorEmpty onRetry={loadData} /> } : undefined}
         rowKey="uuid"
         loading={loading}
         scroll={{ x: isMobile ? 400 : undefined }}
@@ -229,6 +238,10 @@ export default function UsersPage() {
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
+        okText="Salva"
+        cancelText="Annulla"
+        // il form esiste anche a modale chiusa: openModal() lo riempie prima di aprirla
+        forceRender
       >
         <Form form={form} layout="vertical" onFinish={handleSave}>
           <Form.Item
@@ -242,9 +255,13 @@ export default function UsersPage() {
             <Form.Item
               name="password"
               label="Password"
-              rules={[{ required: true, message: 'Inserisci password' }]}
+              rules={[
+                { required: true, message: 'Inserisci password' },
+                // stessa regola del backend (minimo 8 caratteri)
+                { min: 8, message: 'La password deve avere almeno 8 caratteri' },
+              ]}
             >
-              <Input.Password placeholder="Minimo 6 caratteri" />
+              <Input.Password placeholder="Minimo 8 caratteri" />
             </Form.Item>
           )}
           <Form.Item name="firstName" label="Nome">
@@ -287,6 +304,7 @@ export default function UsersPage() {
         confirmLoading={changingPassword}
         okText="Cambia Password"
         cancelText="Annulla"
+        forceRender
       >
         <Form form={passwordForm} layout="vertical" onFinish={handleChangePassword}>
           <Form.Item
@@ -303,10 +321,10 @@ export default function UsersPage() {
             label="Nuova Password"
             rules={[
               { required: true, message: 'Inserisci la nuova password' },
-              { min: 6, message: 'La password deve avere almeno 6 caratteri' },
+              { min: 8, message: 'La password deve avere almeno 8 caratteri' },
             ]}
           >
-            <Input.Password placeholder="Minimo 6 caratteri" />
+            <Input.Password placeholder="Minimo 8 caratteri" />
           </Form.Item>
           <Form.Item
             name="confirmPassword"

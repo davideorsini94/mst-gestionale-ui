@@ -22,6 +22,7 @@ import {
   CheckOutlined,
 } from '@ant-design/icons';
 import { authService } from '../services/AuthService';
+import { useCurrentUser } from '../hooks/useAuth';
 import { useThemePrefs } from '../theme/ThemeProvider';
 import type { ThemeMode } from '../theme/preferences';
 import clubLogo from '../assets/logo-milano-ski-team.png';
@@ -73,7 +74,8 @@ export default function MainLayout() {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const user = authService.getUser();
+  // reattivo: se /auth/me porta permessi nuovi, il menu si aggiorna senza ricaricare
+  const user = useCurrentUser();
   const screens = useBreakpoint();
   const { mode, setMode } = useThemePrefs();
 
@@ -89,6 +91,13 @@ export default function MainLayout() {
   const menuItems = allMenuItems
     .filter((item) => item.capability === null || authService.hasCapability(item.capability))
     .map(({ key, icon, label }) => ({ key, icon, label }));
+
+  // voce evidenziata anche nelle sottopagine (/members/:uuid, /transactions/maintenance…): la più lunga che fa da prefisso
+  const selectedKey =
+    menuItems
+      .map((item) => item.key)
+      .filter((key) => (key === '/' ? location.pathname === '/' : location.pathname === key || location.pathname.startsWith(`${key}/`)))
+      .sort((a, b) => b.length - a.length)[0] ?? '';
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -137,7 +146,7 @@ export default function MainLayout() {
   const navMenu = (
     <Menu
       mode="inline"
-      selectedKeys={[location.pathname]}
+      selectedKeys={selectedKey ? [selectedKey] : []}
       items={menuItems}
       onClick={handleMenuClick}
       className="mst-nav-menu"

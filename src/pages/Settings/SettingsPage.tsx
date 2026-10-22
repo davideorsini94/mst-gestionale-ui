@@ -4,6 +4,7 @@ import { App, Card, Form, Input, Button, Divider, List, InputNumber, Tabs, Switc
 import { message } from '../../services/notify';
 import { SaveOutlined, SendOutlined, MailOutlined, SettingOutlined, DatabaseOutlined, CloudDownloadOutlined, DeleteOutlined, UploadOutlined, CloudServerOutlined, LockOutlined } from '@ant-design/icons';
 import { apiService, getApiBaseUrl } from '@services/ApiService.ts';
+import { getErrorMessage } from '../../helpers/errors';
 import { authService } from '../../services/AuthService';
 
 const { useBreakpoint } = Grid;
@@ -103,7 +104,7 @@ export default function SettingsPage() {
       form.resetFields();
       loadSettings();
     } catch (error) {
-      message.error('Errore nel salvataggio');
+      message.error(getErrorMessage(error, "Errore nel salvataggio dell'impostazione"));
     }
   };
 
@@ -113,7 +114,7 @@ export default function SettingsPage() {
       message.success('Impostazione eliminata');
       loadSettings();
     } catch (error) {
-      message.error('Errore nella cancellazione');
+      message.error(getErrorMessage(error, "Errore nell'eliminazione dell'impostazione"));
     }
   };
 
@@ -135,7 +136,7 @@ export default function SettingsPage() {
       );
       setTestResult({ ok: true, text: `${res.message} (server ${res.usedHost}). Controlla la casella, anche nello spam.` });
     } catch (error: any) {
-      setTestResult({ ok: false, text: error?.response?.data?.message || 'Invio non riuscito' });
+      setTestResult({ ok: false, text: getErrorMessage(error, 'Invio non riuscito') });
     } finally {
       setSendingTest(false);
     }
@@ -153,7 +154,7 @@ export default function SettingsPage() {
       smtpForm.setFieldValue('pass', '');
       message.success('Configurazione SMTP salvata');
     } catch (error) {
-      message.error('Errore nel salvataggio');
+      message.error(getErrorMessage(error, 'Errore nel salvataggio della configurazione SMTP'));
     } finally {
       setSavingSmtp(false);
     }
@@ -169,7 +170,7 @@ export default function SettingsPage() {
       });
       message.success('Email admin salvata');
     } catch (error) {
-      message.error('Errore nel salvataggio');
+      message.error(getErrorMessage(error, "Errore nel salvataggio dell'email amministratore"));
     } finally {
       setSavingAdminEmail(false);
     }
@@ -198,7 +199,7 @@ export default function SettingsPage() {
       message.success(`Backup ${type} creato con successo`);
       loadBackups();
     } catch (error: any) {
-      message.error(error?.response?.data?.message || `Errore nella creazione del backup ${type}`);
+      message.error(getErrorMessage(error, `Errore nella creazione del backup ${type}`));
     } finally {
       setCreatingBackup(null);
     }
@@ -206,14 +207,22 @@ export default function SettingsPage() {
 
   const handleDownloadBackup = async (filename: string) => {
     try {
-      // window.open non invia l'header Authorization: il token va in query (come per le ricevute)
-      const token = authService.getToken();
-      window.open(
-        `${getApiBaseUrl()}/settings/backup/download/${encodeURIComponent(filename)}?token=${encodeURIComponent(token ?? '')}`,
-        '_blank',
+      // un download diretto non invia l'header Authorization: il server dà un biglietto monouso valido 60 secondi
+      // (un backup può pesare GB, quindi niente download in memoria come per i PDF)
+      const { ticket } = await apiService.post<{ ticket: string }>(
+        `/settings/backup/download-ticket/${encodeURIComponent(filename)}`,
+        {},
       );
+      // il server risponde come allegato: un link nella stessa pagina scarica il file senza aprire schede
+      // (window.open dopo un await viene bloccato da Safari/iOS)
+      const a = document.createElement('a');
+      a.href = `${getApiBaseUrl()}/settings/backup/download/${encodeURIComponent(filename)}?ticket=${encodeURIComponent(ticket)}`;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     } catch (error) {
-      message.error('Errore nel download del backup');
+      message.error(getErrorMessage(error, 'Errore nel download del backup'));
     }
   };
 
@@ -223,7 +232,7 @@ export default function SettingsPage() {
       message.success('Backup eliminato');
       loadBackups();
     } catch (error) {
-      message.error('Errore nella cancellazione del backup');
+      message.error(getErrorMessage(error, 'Errore nella cancellazione del backup'));
     }
   };
 
@@ -231,6 +240,8 @@ export default function SettingsPage() {
   const confirmRestore = (file: File, type: 'database' | 'minio') => {
     const what = type === 'database' ? 'il database' : 'tutti i file (MinIO)';
     modal.confirm({
+      // azioni pericolose: Invio non deve confermare
+      autoFocusButton: 'cancel',
       title: `Ripristinare ${what}?`,
       content: (
         <div>
@@ -263,16 +274,16 @@ export default function SettingsPage() {
       message.warning('Ricaricare la pagina per vedere i cambiamenti');
       loadBackups();
     } catch (error: any) {
-      message.error(error?.response?.data?.message || 'Errore nel ripristino');
+      message.error(getErrorMessage(error, 'Errore nel ripristino'));
     } finally {
       setRestoringBackup(false);
     }
   };
 
   const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return '0 byte';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ['byte', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
@@ -292,7 +303,7 @@ export default function SettingsPage() {
       message.success('Password aggiornata con successo');
       passwordForm.resetFields();
     } catch (error: any) {
-      message.error(error?.response?.data?.message || 'Errore nel cambio password');
+      message.error(getErrorMessage(error, 'Errore nel cambio password'));
     } finally {
       setChangingPassword(false);
     }
@@ -653,7 +664,7 @@ export default function SettingsPage() {
         <Card title="Cambia Password">
           <Alert
             message="Sicurezza"
-            description="La nuova password deve essere di almeno 6 caratteri. Dopo il cambio password dovrai effettuare nuovamente il login."
+            description="La nuova password deve essere di almeno 8 caratteri. Dopo il cambio password dovrai effettuare nuovamente il login."
             type="info"
             showIcon
             className="mb-4"
@@ -676,7 +687,7 @@ export default function SettingsPage() {
               label="Nuova Password"
               rules={[
                 { required: true, message: 'Inserisci la nuova password' },
-                { min: 6, message: 'La password deve essere di almeno 6 caratteri' },
+                { min: 8, message: 'La password deve essere di almeno 8 caratteri' },
               ]}
             >
               <Input.Password placeholder="Nuova password" />
