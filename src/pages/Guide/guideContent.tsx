@@ -918,6 +918,9 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           'Nell\'elenco **Backup Disponibili** premi **Scarica** e conserva il file in un posto sicuro (es. un disco esterno).',
         ],
         tips: [
+          'Ogni notte alle 4 il gestionale fa da solo un backup completo (etichetta **Automatico** nell\'elenco). Sul server restano gli ultimi 5 backup automatici dei dati e gli ultimi 5 dei file: dal sesto si elimina il più vecchio, quindi scarica quelli da tenere più a lungo.',
+          'I backup fatti a mano (etichetta **Manuale**) non vengono mai eliminati in automatico: occupano spazio sul server finché non li elimini tu.',
+          'Se il backup automatico non riesce (ad esempio per spazio su disco insufficiente) o non ne riesce uno da più di un giorno, in cima a ogni pagina compare un avviso con il motivo: premi **Vai ai backup** per controllare.',
           'Fai un backup prima di operazioni importanti (import grandi, manutenzione dati).',
           'I file di backup sono cifrati: si possono ripristinare solo in questo gestionale.',
           'Con **Elimina** togli dall\'elenco i backup vecchi che non servono.',

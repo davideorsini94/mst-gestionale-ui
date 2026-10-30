@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { App, Card, Form, Input, Button, Divider, List, InputNumber, Tabs, Switch, Alert, Upload, Table, Popconfirm, Space, Tag, Grid, Result } from 'antd';
 import { message } from '../../services/notify';
 import { SaveOutlined, SendOutlined, MailOutlined, SettingOutlined, DatabaseOutlined, CloudDownloadOutlined, DeleteOutlined, UploadOutlined, CloudServerOutlined, LockOutlined } from '@ant-design/icons';
 import { apiService, getApiBaseUrl } from '@services/ApiService.ts';
 import { getErrorMessage } from '../../helpers/errors';
+import { formatDateTime, nightlyBackupProblem, type NightlyBackupStatus } from '../../helpers/backupStatus';
 import { authService } from '../../services/AuthService';
 
 const { useBreakpoint } = Grid;
@@ -46,14 +47,19 @@ export default function SettingsPage() {
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState<string | null>(null);
   const [restoringBackup, setRestoringBackup] = useState(false);
+  const [nightlyStatus, setNightlyStatus] = useState<NightlyBackupStatus | null>(null);
   const [passwordForm] = Form.useForm();
   const [changingPassword, setChangingPassword] = useState(false);
 
   const canAccessSettings = authService.hasCapability('CAN_MANAGE_SETTINGS');
+  // ?tab=backup: arrivo dall'avviso dei backup in cima alle pagine
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'backup' ? 'backup' : 'email';
 
   useEffect(() => {
     if (canAccessSettings) {
       loadSettings();
+      if (initialTab === 'backup' && authService.hasCapability('CAN_MANAGE_BACKUP')) loadBackups();
     }
   }, [canAccessSettings]);
 
@@ -189,6 +195,58 @@ export default function SettingsPage() {
     } finally {
       setLoadingBackups(false);
     }
+    // lo stato del notturno è solo informativo: un errore qui non blocca la pagina
+    apiService.get<NightlyBackupStatus>('/settings/backup/status').then(setNightlyStatus, () => setNightlyStatus(null));
+  };
+
+  /** Avviso sul backup automatico: errore se l'ultimo è fallito, attenzione se è spento o fermo da troppo. */
+  const renderNightlyBackupAlert = () => {
+    const max = nightlyStatus?.maxPerType ?? 5;
+    const rule =
+      `Ogni notte alle ${nightlyStatus?.time ?? '04:00'} viene creato un backup completo (database e file). ` +
+      `Sul server restano gli ultimi ${max} backup automatici del database e gli ultimi ${max} dei file: dal sesto si ` +
+      'elimina il più vecchio. I backup manuali non contano e restano finché non li elimini. ' +
+      'Scarica e conserva altrove i backup da tenere più a lungo.';
+    if (nightlyStatus && !nightlyStatus.enabled) {
+      return (
+        <Alert
+          message="Backup automatico disattivato"
+          description="Il backup notturno è spento sul server (BACKUP_AUTO_ENABLED). Fai i backup a mano."
+          type="warning"
+          showIcon
+        />
+      );
+    }
+    const problem = nightlyBackupProblem(nightlyStatus);
+    if (problem) {
+      return (
+        <Alert
+          message={problem.title}
+          description={
+            <>
+              {problem.details.map((d) => <div key={d}>{d}</div>)}
+              <div className="mt-2">{rule}</div>
+            </>
+          }
+          type={problem.type}
+          showIcon
+        />
+      );
+    }
+    const lastSuccessAt = nightlyStatus?.last?.lastSuccessAt;
+    return (
+      <Alert
+        message="Backup automatico"
+        description={
+          <>
+            {lastSuccessAt && <div>Ultimo backup automatico riuscito: {formatDateTime(lastSuccessAt)}.</div>}
+            {rule}
+          </>
+        }
+        type="info"
+        showIcon
+      />
+    );
   };
 
   const handleCreateBackup = async (type: 'database' | 'minio' | 'full') => {
@@ -494,6 +552,8 @@ export default function SettingsPage() {
             className="mb-4"
           />
 
+          {renderNightlyBackupAlert()}
+
           <Card title="Crea Backup">
             <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-3'} gap-4`}>
               <Button
@@ -555,6 +615,15 @@ export default function SettingsPage() {
                     <Tag color={type === 'database' ? 'blue' : 'green'}>
                       {type === 'database' ? 'Database' : 'MinIO'}
                     </Tag>
+                  ),
+                },
+                {
+                  title: 'Origine',
+                  dataIndex: 'automatic',
+                  key: 'automatic',
+                  // gli automatici ruotano (restano gli ultimi N), i manuali restano finché non si eliminano
+                  render: (automatic: boolean) => (
+                    <Tag color={automatic ? 'purple' : 'default'}>{automatic ? 'Automatico' : 'Manuale'}</Tag>
                   ),
                 },
                 {
@@ -727,7 +796,7 @@ export default function SettingsPage() {
         items={tabItems}
         // l'elenco dei backup si carica quando si apre la scheda (prima restava vuoto fino a "Ricarica")
         onChange={(key) => key === 'backup' && authService.hasCapability('CAN_MANAGE_BACKUP') && loadBackups()}
-        defaultActiveKey="email"
+        defaultActiveKey={initialTab}
         tabPosition={isMobile ? 'top' : 'top'}
         size={isMobile ? 'small' : 'middle'}
       />

@@ -27,6 +27,7 @@ import { useCurrentUser } from '../hooks/useAuth';
 import { useThemePrefs } from '../theme/ThemeProvider';
 import type { ThemeMode } from '../theme/preferences';
 import clubLogo from '../assets/logo-milano-ski-team.png';
+import BackupStatusBanner from './BackupStatusBanner';
 
 const { Sider, Content } = Layout;
 const { useBreakpoint } = Grid;
@@ -225,6 +226,7 @@ export default function MainLayout() {
         </div>
         <Content className="mst-content">
           <div className="mst-content-surface">
+            <BackupStatusBanner />
             <Outlet />
           </div>
         </Content>
